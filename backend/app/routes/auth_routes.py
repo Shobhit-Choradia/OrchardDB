@@ -104,4 +104,3 @@ def delete_tenant(creds: TenantCredentials):
     }
 
 
-

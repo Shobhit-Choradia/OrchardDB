@@ -189,6 +189,34 @@ def delete_pdf(
         )
 
 
+@router.get("/collections/{collection_name}/documents")
+def list_pdf_documents(
+    collection_name: str,
+    tenant_id: int = Depends(get_premium_tenant_id)
+):
+    """
+    Endpoint: Lists all tracked PDF sources uploaded to this collection.
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT source_id, doc_name, created_at FROM documents WHERE tenant_id = ? AND collection_id = ?",
+            (tenant_id, collection_name)
+        )
+        rows = cursor.fetchall()
+        
+    return {
+        "documents": [
+            {
+                "source_id": row["source_id"],
+                "doc_name": row["doc_name"],
+                "created_at": row["created_at"]
+            }
+            for row in rows
+        ]
+    }
+
+
 @router.get("/collections/{collection_name}/documents/{source_id}")
 def get_pdf_documents(
     collection_name: str,

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { 
   Moon, Sun, FolderOpen, Plus, Lock, Trash2, 
   CloudUpload, Copy, RotateCw, Eye, EyeOff, X, 
-  LogOut, CheckCircle2, AlertTriangle, Search, Database, ChevronRight 
+  LogOut, CheckCircle2, AlertTriangle, Search, Database, ChevronRight,
+  Sparkles, FileText
 } from "lucide-react";
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
@@ -44,6 +45,16 @@ export default function App() {
   const [collectionDocs, setCollectionDocs] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
 
+  // --- Premium PDF States ---
+  const [isPremium, setIsPremium] = useState(false);
+  const [pdfFiles, setPdfFiles] = useState([]);
+  const [isLoadingPdfs, setIsLoadingPdfs] = useState(false);
+  const [selectedPdf, setSelectedPdf] = useState(null);
+  const [pdfChunks, setPdfChunks] = useState([]);
+  const [isLoadingChunks, setIsLoadingChunks] = useState(false);
+  const [pdfFileToUpload, setPdfFileToUpload] = useState(null);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+
   // --- Effects ---
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -53,14 +64,17 @@ export default function App() {
   useEffect(() => {
     if (apiKey) {
       fetchCollections();
+      fetchPremiumStatus();
     }
   }, [apiKey]);
 
   useEffect(() => {
     if (activeCollection && activeTab === "documents") {
       fetchDocuments();
+    } else if (activeCollection && activeTab === "pdf" && isPremium) {
+      fetchPdfFiles();
     }
-  }, [activeCollection, activeTab]);
+  }, [activeCollection, activeTab, isPremium]);
 
   // --- Toast Handler ---
   const triggerToast = (message, type = "success") => {
@@ -69,6 +83,137 @@ export default function App() {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3500);
+  };
+
+  // --- Premium API Integrations ---
+  const fetchPremiumStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/status`, {
+        headers: { "x-api-key": apiKey }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsPremium(data.is_premium);
+      }
+    } catch (e) {
+      console.error("Failed to fetch premium billing status", e);
+    }
+  };
+
+  const handleUpgradeToPremium = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/upgrade`, {
+        method: "POST",
+        headers: { "x-api-key": apiKey }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsPremium(true);
+        triggerToast(data.message, "success");
+      } else {
+        triggerToast(data.detail || "Upgrade failed.", "error");
+      }
+    } catch {
+      triggerToast("Error contacting payment gateway simulation.", "error");
+    }
+  };
+
+  const fetchPdfFiles = async () => {
+    setIsLoadingPdfs(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents`, {
+        headers: { "x-api-key": apiKey }
+      });
+      const data = await res.json();
+      setIsLoadingPdfs(false);
+      if (res.ok) {
+        setPdfFiles(data.documents || []);
+      } else {
+        triggerToast(data.detail || "Error loading uploaded files.", "error");
+      }
+    } catch {
+      setIsLoadingPdfs(false);
+      triggerToast("Network communication error with PDF services.", "error");
+    }
+  };
+
+  const handlePdfUpload = async (e) => {
+    e.preventDefault();
+    if (!pdfFileToUpload) {
+      triggerToast("Please select a PDF document first.", "error");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", pdfFileToUpload);
+
+    setIsUploadingPdf(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/upload`, {
+        method: "POST",
+        headers: { "x-api-key": apiKey },
+        body: formData
+      });
+      const data = await res.json();
+      setIsUploadingPdf(false);
+      if (res.ok) {
+        triggerToast(data.message, "success");
+        setPdfFileToUpload(null);
+        const fileInput = document.getElementById("pdf-file-input");
+        if (fileInput) fileInput.value = "";
+        fetchPdfFiles();
+      } else {
+        triggerToast(data.detail || "Upload failed.", "error");
+      }
+    } catch {
+      setIsUploadingPdf(false);
+      triggerToast("Error executing PDF scan & upload.", "error");
+    }
+  };
+
+  const handlePdfDelete = async (sourceId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this PDF and all its indexed vector chunks?");
+    if (!confirmDelete) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents/${sourceId}`, {
+        method: "DELETE",
+        headers: { "x-api-key": apiKey }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        triggerToast(data.message, "success");
+        if (selectedPdf && selectedPdf.source_id === sourceId) {
+          setSelectedPdf(null);
+          setPdfChunks([]);
+        }
+        fetchPdfFiles();
+      } else {
+        triggerToast(data.detail || "Delete failed.", "error");
+      }
+    } catch {
+      triggerToast("Error executing delete command.", "error");
+    }
+  };
+
+  const fetchPdfChunks = async (pdfObj) => {
+    setSelectedPdf(pdfObj);
+    setIsLoadingChunks(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents/${pdfObj.source_id}`, {
+        headers: { "x-api-key": apiKey }
+      });
+      const data = await res.json();
+      setIsLoadingChunks(false);
+      if (res.ok) {
+        setPdfChunks(data.chunks || []);
+      } else {
+        triggerToast(data.detail || "Failed to load document chunks.", "error");
+      }
+    } catch {
+      setIsLoadingChunks(false);
+      triggerToast("Failed to fetch document chunks.", "error");
+    }
   };
 
   // --- Core API Integrations ---
@@ -498,7 +643,18 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
               {/* Credentials Header Panel */}
               <div className="full-width-card welcome-card">
                 <div className="welcome-left">
-                  <h2>Welcome back, <span className="highlight-text">{username}</span>!</h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+                    <h2 style={{ margin: 0 }}>Welcome back, <span className="highlight-text">{username}</span>!</h2>
+                    {isPremium ? (
+                      <span className="badge premium-badge" style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#fff", display: "inline-flex", alignItems: "center", gap: "0.25rem", border: "none", fontSize: "0.75rem", padding: "0.1rem 0.5rem", borderRadius: "100px", fontWeight: "600" }}>
+                        <Sparkles size={12} /> Premium
+                      </span>
+                    ) : (
+                      <button className="btn btn-outline" style={{ height: "24px", padding: "0 0.5rem", fontSize: "0.7rem", display: "inline-flex", alignItems: "center", gap: "0.25rem", color: "#f59e0b", borderColor: "#f59e0b", background: "transparent", fontWeight: "600", cursor: "pointer", borderRadius: "4px" }} onClick={handleUpgradeToPremium}>
+                        <Sparkles size={12} /> Upgrade to Premium
+                      </button>
+                    )}
+                  </div>
                   <p>Your isolated vector database namespace is secured and active.</p>
                 </div>
                 <div className="api-key-panel">
@@ -593,7 +749,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                       </div>
 
                       {/* Playground Tabs */}
-                      <div className="sandbox-tabs">
+                      <div className="sandbox-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
                         <button 
                           className={`tab-btn ${activeTab === "query" ? "active" : ""}`}
                           onClick={() => setActiveTab("query")}
@@ -608,6 +764,17 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                           }}
                         >
                           Index Documents Table
+                        </button>
+                        <button 
+                          className={`tab-btn ${activeTab === "pdf" ? "active" : ""}`}
+                          style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
+                          onClick={() => {
+                            setActiveTab("pdf");
+                            if (isPremium) fetchPdfFiles();
+                          }}
+                        >
+                          <Sparkles size={12} style={{ color: "#f59e0b" }} />
+                          <span>PDF Scan & Load</span>
                         </button>
                         <button 
                           className={`tab-btn ${activeTab === "code" ? "active" : ""}`}
@@ -770,6 +937,213 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                               </table>
                             </div>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Tab Content: Premium PDF Scan & Load */}
+                      {activeTab === "pdf" && (
+                        <div className="tab-content">
+                          {!isPremium ? (
+                            <div className="premium-lock-overlay" style={{
+                              background: "rgba(30, 27, 75, 0.4)",
+                              backdropFilter: "blur(8px)",
+                              borderRadius: "12px",
+                              padding: "3rem 2rem",
+                              textAlign: "center",
+                              border: "1px solid rgba(245, 158, 11, 0.2)",
+                              margin: "1rem 0"
+                            }}>
+                              <div style={{ display: "inline-flex", padding: "1rem", borderRadius: "50%", background: "rgba(245, 158, 11, 0.1)", marginBottom: "1.5rem" }}>
+                                <Lock size={40} style={{ color: "#f59e0b" }} />
+                              </div>
+                              <h3 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem 0", color: "#fff" }}>Unlock Premium Document Services</h3>
+                              <p style={{ maxWidth: "500px", margin: "0 auto 1.5rem auto", color: "var(--text-muted)", fontSize: "0.95rem", lineHeight: "1.5" }}>
+                                Parse entire PDF documents into semantically coherent vector chunks, map text blocks back to their exact source pages, and index complex manuals in seconds.
+                              </p>
+                              <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#e2e8f0" }}>
+                                  <Sparkles size={14} style={{ color: "#f59e0b" }} />
+                                  <span>Semantic Parsing</span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#e2e8f0" }}>
+                                  <Sparkles size={14} style={{ color: "#f59e0b" }} />
+                                  <span>Page-Level Mapping</span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#e2e8f0" }}>
+                                  <Sparkles size={14} style={{ color: "#f59e0b" }} />
+                                  <span>Bulk Ingestion</span>
+                                </div>
+                              </div>
+                              <button 
+                                className="btn btn-primary" 
+                                style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", color: "#fff", padding: "0.75rem 2rem", fontSize: "1rem", fontWeight: "600", borderRadius: "8px", boxShadow: "0 4px 12px rgba(245, 158, 11, 0.25)", cursor: "pointer" }}
+                                onClick={handleUpgradeToPremium}
+                              >
+                                Upgrade Account (Instant Access)
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="pdf-service-playground" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
+                                
+                                {/* PDF Ingestion Card */}
+                                <div className="form-container" style={{ margin: 0 }}>
+                                  <h4>Ingest PDF Document</h4>
+                                  <p className="section-desc">Upload a PDF to parse pages semantically and automatically index their chunks into the current collection.</p>
+                                  
+                                  <form onSubmit={handlePdfUpload} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                                    <div 
+                                      className="file-upload-zone"
+                                      style={{
+                                        border: "2px dashed var(--border-color)",
+                                        borderRadius: "8px",
+                                        padding: "2rem 1rem",
+                                        textAlign: "center",
+                                        background: "var(--card-bg-light)",
+                                        cursor: "pointer",
+                                        transition: "border-color 0.2s"
+                                      }}
+                                      onClick={() => document.getElementById("pdf-file-input").click()}
+                                    >
+                                      <CloudUpload size={32} style={{ color: "var(--text-muted)", marginBottom: "0.5rem" }} />
+                                      {pdfFileToUpload ? (
+                                        <div>
+                                          <p style={{ fontWeight: "600", margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>{pdfFileToUpload.name}</p>
+                                          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>{(pdfFileToUpload.size / 1024).toFixed(1)} KB</p>
+                                        </div>
+                                      ) : (
+                                        <div>
+                                          <p style={{ fontWeight: "500", margin: "0 0 0.25rem 0" }}>Click to select PDF manual</p>
+                                          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>Max file size: 10MB</p>
+                                        </div>
+                                      )}
+                                      <input 
+                                        type="file" 
+                                        id="pdf-file-input"
+                                        accept=".pdf"
+                                        style={{ display: "none" }}
+                                        onChange={(e) => setPdfFileToUpload(e.target.files[0])}
+                                      />
+                                    </div>
+                                    
+                                    <button 
+                                      type="submit" 
+                                      className="btn btn-primary" 
+                                      disabled={isUploadingPdf || !pdfFileToUpload}
+                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
+                                    >
+                                      {isUploadingPdf ? (
+                                        <>
+                                          <RotateCw className="animate-spin" size={16} />
+                                          <span>Parsing & Chunking PDF...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CloudUpload size={16} />
+                                          <span>Upload & Scan PDF</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </form>
+                                </div>
+
+                                {/* Processed PDFs Registry */}
+                                <div className="form-container" style={{ margin: 0, display: "flex", flexDirection: "column" }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                                    <h4 style={{ margin: 0 }}>Document Registry</h4>
+                                    <button onClick={fetchPdfFiles} className="icon-btn" title="Refresh files" disabled={isLoadingPdfs}>
+                                      <RotateCw className={isLoadingPdfs ? "animate-spin" : ""} size={14} />
+                                    </button>
+                                  </div>
+                                  
+                                  {isLoadingPdfs ? (
+                                    <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
+                                      <RotateCw className="animate-spin" size={24} />
+                                    </div>
+                                  ) : pdfFiles.length === 0 ? (
+                                    <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--text-muted)", background: "rgba(0, 0, 0, 0.05)", borderRadius: "8px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+                                      <FileText size={24} style={{ marginBottom: "0.5rem" }} />
+                                      <p style={{ margin: 0, fontSize: "0.9rem" }}>No PDFs ingested in this space yet.</p>
+                                    </div>
+                                  ) : (
+                                    <div style={{ overflowY: "auto", maxHeight: "250px", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
+                                      {pdfFiles.map(file => (
+                                        <div 
+                                          key={file.source_id} 
+                                          onClick={() => fetchPdfChunks(file)}
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            padding: "0.75rem",
+                                            background: selectedPdf?.source_id === file.source_id ? "rgba(245, 158, 11, 0.1)" : "var(--card-bg-light)",
+                                            border: selectedPdf?.source_id === file.source_id ? "1px solid rgba(245, 158, 11, 0.3)" : "1px solid var(--border-color)",
+                                            borderRadius: "6px",
+                                            cursor: "pointer",
+                                            transition: "all 0.15s"
+                                          }}
+                                        >
+                                          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
+                                            <FileText size={16} style={{ color: "#f59e0b", flexShrink: 0 }} />
+                                            <div style={{ minWidth: 0 }}>
+                                              <p style={{ fontWeight: "600", fontSize: "0.85rem", margin: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{file.doc_name}</p>
+                                              <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", margin: 0 }}>ID: {file.source_id} • {new Date(file.created_at).toLocaleDateString()}</p>
+                                            </div>
+                                          </div>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handlePdfDelete(file.source_id);
+                                            }}
+                                            className="icon-btn" 
+                                            style={{ color: "var(--danger-color)", padding: "0.25rem" }}
+                                            title="Delete PDF source"
+                                          >
+                                            <Trash2 size={14} />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Vector Chunk Registry Viewer */}
+                              {selectedPdf && (
+                                <div className="form-container" style={{ margin: 0 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                      <Sparkles size={16} style={{ color: "#f59e0b" }} />
+                                      <h4 style={{ margin: 0 }}>Processed Semantic Chunks: <span className="highlight-text">{selectedPdf.doc_name}</span></h4>
+                                    </div>
+                                    <span className="badge" style={{ fontSize: "0.75rem" }}>{pdfChunks.length} chunks</span>
+                                  </div>
+
+                                  {isLoadingChunks ? (
+                                    <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
+                                      <RotateCw className="animate-spin" size={24} />
+                                    </div>
+                                  ) : pdfChunks.length === 0 ? (
+                                    <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "2rem" }}>No text chunks returned for this document.</p>
+                                  ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxHeight: "400px", overflowY: "auto", paddingRight: "0.25rem" }}>
+                                      {pdfChunks.map((chunk, index) => (
+                                        <div key={chunk.id} style={{ padding: "1rem", background: "var(--card-bg-light)", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
+                                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                                            <span style={{ fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>ID: {chunk.id}</span>
+                                            <span className="badge" style={{ background: "rgba(245, 158, 11, 0.1)", color: "#f59e0b", border: "1px solid rgba(245, 158, 11, 0.2)", fontSize: "0.7rem", padding: "0.1rem 0.4rem" }}>
+                                              Page {chunk.metadata?.page_number !== undefined ? chunk.metadata.page_number + 1 : "N/A"}
+                                            </span>
+                                          </div>
+                                          <p style={{ margin: 0, fontSize: "0.85rem", lineHeight: "1.6", color: "var(--text-main)", whiteSpace: "pre-wrap" }}>{chunk.text}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
 
