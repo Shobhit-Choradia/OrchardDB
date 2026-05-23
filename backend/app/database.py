@@ -18,7 +18,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                paid_user BOOLEAN DEFAULT 0
+                paid_tenant BOOLEAN DEFAULT 0
             )
         """)
         conn.execute("""
@@ -36,10 +36,10 @@ def init_db():
             CREATE TABLE IF NOT EXISTS documents (
                 source_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tenant_id INTEGER NOT NULL,
-                collection_id INTEGER NOT NULL,
+                collection_name TEXT NOT NULL,
                 doc_name TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (tenant_id) REFERENCES tenants(id), 
-                UNIQUE(tenant_id,collection_id,doc_name)
+                UNIQUE(tenant_id,collection_name,doc_name)
             )
         """)

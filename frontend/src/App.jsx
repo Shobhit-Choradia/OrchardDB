@@ -416,7 +416,7 @@ export default function App() {
 
     setIsIndexing(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}/documents`, {
+      const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}/upsert_documents`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -492,7 +492,7 @@ payload_upsert = {
     "documents": ["LunarDB wraps ChromaDB securely, providing robust trials."],
     "metadatas": [{"category": "demo"}]
 }
-requests.post(f"{BASE_URL}/collections/${col}/documents", headers=HEADERS, json=payload_upsert)
+requests.post(f"{BASE_URL}/collections/${col}/upsert_documents", headers=HEADERS, json=payload_upsert)
 
 # 2. Perform similarity search query
 payload_query = {
@@ -510,7 +510,7 @@ const headers = {
 };
 
 // 1. Index document into collection namespace
-fetch(\`\${baseUrl}/collections/${col}/documents\`, {
+fetch(\`\${baseUrl}/collections/${col}/upsert_documents\`, {
   method: "POST",
   headers: headers,
   body: JSON.stringify({
@@ -1132,7 +1132,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                                             <span style={{ fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>ID: {chunk.id}</span>
                                             <span className="badge" style={{ background: "rgba(245, 158, 11, 0.1)", color: "#f59e0b", border: "1px solid rgba(245, 158, 11, 0.2)", fontSize: "0.7rem", padding: "0.1rem 0.4rem" }}>
-                                              Page {chunk.metadata?.page_number !== undefined ? chunk.metadata.page_number + 1 : "N/A"}
+                                              Page {chunk.metadata?.page !== undefined ? chunk.metadata.page : "N/A"}
                                             </span>
                                           </div>
                                           <p style={{ margin: 0, fontSize: "0.85rem", lineHeight: "1.6", color: "var(--text-main)", whiteSpace: "pre-wrap" }}>{chunk.text}</p>

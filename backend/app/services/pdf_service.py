@@ -38,7 +38,6 @@ class PDFProcessor:
         """
 
         reader = pypdf.PdfReader(file_stream)
-        total_pages = len(reader.pages)
 
         raw_chunks = []
 

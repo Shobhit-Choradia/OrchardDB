@@ -30,28 +30,28 @@ def verify_tenant(username: str, password: str) -> int:
         row = cursor.fetchone()
         return row["id"] if row else None
 
-def activate_paid_tenant(username: str) -> bool:
-    """Activate a tenant's subscription, setting paid_user as 1"""
+def activate_paid_tenant(tenant_id: int) -> bool:
+    """Activate a tenant's subscription, setting paid_tenant as 1"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "UPDATE tenants SET paid_user = 1 WHERE username = ?", (username,)
+                "UPDATE tenants SET paid_tenant = 1 WHERE id = ?", (tenant_id,)
             )
             conn.commit()
-            return True
+            return cursor.rowcount > 0
         except Exception:
             return False
 
-def verify_paid_tenant(username: str) -> bool:
+def verify_paid_tenant(tenant_id: int) -> bool:
     """Verify if a tenant is paid"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT paid_user FROM tenants WHERE username = ?", (username,)
+            "SELECT paid_tenant FROM tenants WHERE id = ?", (tenant_id,)
         )
         row = cursor.fetchone()
-        return bool(row["paid_user"]) if row else False
+        return bool(row["paid_tenant"]) if row else False
 
 def generate_tenant_api_key(tenant_id: int, key_name: str = "Default Key") -> str:
     """Generates a secure API key, stores its hash, and returns the raw key."""

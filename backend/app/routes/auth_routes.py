@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Header, HTTPException, Depends, status
 from pydantic import BaseModel
 from app.services import auth_service
-from app.routes.vdb_routes import get_tenant_id
+from app.dependencies import get_tenant_id
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -60,21 +60,14 @@ def upgrade_to_premium(tenant_id: int = Depends(get_tenant_id)):
     """
     Simulates a payment/upgrade by upgrading the authenticated tenant to the premium tier.
     """
-    # Fetch the tenant's username to perform activation
-    with auth_service.get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT username FROM tenants WHERE id = ?", (tenant_id,))
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Tenant not found."
-            )
-        username = row["username"]
-        
-    auth_service.activate_paid_tenant(username)
+    success = auth_service.activate_paid_tenant(tenant_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found or upgrade failed."
+        )
     return {
-        "message": "Congratulations! Your developer account has been upgraded to LunarDB Premium Tier.",
+        "message": "Congratulations! Your developer account has been upgraded to OrchardDB Premium Tier.",
         "is_premium": True
     }
 
@@ -102,5 +95,3 @@ def delete_tenant(creds: TenantCredentials):
         "message": "Tenant deleted successfully",
         "status" : "200"
     }
-
-

@@ -1,27 +1,10 @@
 from fastapi import APIRouter, Header, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from app.services.auth_service import verify_api_key
-from app.chroma_manager import ChromaManager
+from app.dependencies import get_tenant_id, db_manager
 
 # Create API router with Prefix and Tags for Swagger documentation grouping
 router = APIRouter(prefix="/vdb", tags=["Vector Operations"])
-db_manager = ChromaManager()
-
-# --- Security Dependency ---
-
-def get_tenant_id(x_api_key: str = Header(..., description="Developer API Key (e.g. lunar_xxxx.xxxx)")) -> int:
-    """
-    Security dependency to authorize incoming REST requests.
-    Validates the provided API key header and extracts the associated tenant_id.
-    """
-    tenant_id = verify_api_key(x_api_key)
-    if not tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid, expired, or deactivated API Key. Access denied."
-        )
-    return tenant_id
 
 # --- Pydantic Data Schemas ---
 
@@ -49,9 +32,32 @@ class CollectionResponse(BaseModel):
 class CollectionListResponse(BaseModel):
     collections: List[str]
 
-class DocumentResponse(BaseModel):
+class DocumentUpsertResponse(BaseModel):
     message: str
-    document_id: str
+    count: int
+
+class DocumentDeleteResponse(BaseModel):
+    message: str
+    count: int
+
+class QueryMatch(BaseModel):
+    id: str
+    document: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    distance: Optional[float] = None
+
+class QueryResponse(BaseModel):
+    query: str
+    results: List[QueryMatch]
+
+class DocumentsListResponse(BaseModel):
+    ids: List[str]
+    documents: List[Optional[str]]
+    metadatas: List[Optional[Dict[str, Any]]]
+
+class DocumentUpdateResponse(BaseModel):
+    message: str
+    count: int
 
 # --- Router Endpoints ---
 
@@ -64,7 +70,11 @@ def create_collection(payload: CollectionCreate, tenant_id: int = Depends(get_te
     """
     try:
         db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=payload.name, metric=payload.metric)
-        return {"message": f"Collection '{payload.name}' initialized successfully."}
+        return {
+            "message": f"Collection '{payload.name}' initialized successfully.",
+            "collection_name": payload.name,
+            "metric": payload.metric or "cosine"
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -99,7 +109,22 @@ def delete_collection(name: str, tenant_id: int = Depends(get_tenant_id)):
             detail=f"Failed to delete collection: {str(e)}"
         )
 
-@router.post("/collections/{name}/upsert_documents", response_model=DocumentResponse)
+# --- Shared Validation ---
+
+def validate_document_payload(payload: DocumentUpsert):
+    """Validates that ids, documents, and metadatas arrays have consistent lengths."""
+    if len(payload.ids) != len(payload.documents):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Number of ids and documents must be equal."
+        )
+    if payload.metadatas and len(payload.metadatas) != len(payload.ids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Number of metadatas must match the number of documents if provided."
+        )
+
+@router.post("/collections/{name}/upsert_documents", response_model=DocumentUpsertResponse)
 def upsert_documents(name: str, payload: DocumentUpsert, tenant_id: int = Depends(get_tenant_id)):
     """
     Safely indexes or updates vector documents inside the tenant's isolated collection.
@@ -110,18 +135,8 @@ def upsert_documents(name: str, payload: DocumentUpsert, tenant_id: int = Depend
         tenant_id (int): The ID of the tenant making the request.
     """
 
-    # 1. Validation check for equal length lists
-    if len(payload.ids) != len(payload.documents):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Number of ids and documents must be equal."
-        )
-    
-    if payload.metadatas and len(payload.metadatas) != len(payload.ids):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Number of metadatas must match the number of documents if provided."
-        )
+    # 1. Validate payload structure
+    validate_document_payload(payload)
     
     # 2. Prevent internal duplicate IDs within the incoming request payload itself
     if len(payload.ids) != len(set(payload.ids)):
@@ -148,7 +163,10 @@ def upsert_documents(name: str, payload: DocumentUpsert, tenant_id: int = Depend
             documents=payload.documents,
             metadatas=payload.metadatas
         )
-        return {"message": f"Successfully indexed {len(payload.ids)} documents."}
+        return {
+            "message": f"Successfully indexed {len(payload.ids)} documents.",
+            "count": len(payload.ids)
+        }
 
     except HTTPException as he:
         raise he
@@ -158,7 +176,7 @@ def upsert_documents(name: str, payload: DocumentUpsert, tenant_id: int = Depend
             detail=f"Error indexing documents: {str(e)}"
         )
 
-@router.delete("/collections/{name}/documents")
+@router.delete("/collections/{name}/documents", response_model=DocumentDeleteResponse)
 def delete_documents(name: str, payload: DocumentDelete, tenant_id: int = Depends(get_tenant_id)):
     """
     Deletes specific vector documents by their IDs from the tenant's isolated collection.
@@ -170,7 +188,10 @@ def delete_documents(name: str, payload: DocumentDelete, tenant_id: int = Depend
     try:
         collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=name)
         collection.delete(ids=payload.ids)
-        return {"message": f"Successfully deleted {len(payload.ids)} documents."}
+        return {
+            "message": f"Successfully deleted {len(payload.ids)} documents.",
+            "count": len(payload.ids)
+        }
 
     except Exception as e:
         raise HTTPException(
@@ -178,7 +199,7 @@ def delete_documents(name: str, payload: DocumentDelete, tenant_id: int = Depend
             detail=f"Error deleting documents: {str(e)}"
         )
 
-@router.post("/collections/{name}/query")
+@router.post("/collections/{name}/query", response_model=QueryResponse)
 def query_collection(name: str, payload: QueryRequest, tenant_id: int = Depends(get_tenant_id)):
     """
     Performs a semantic similarity search and returns the top matching documents.
@@ -222,7 +243,7 @@ def query_collection(name: str, payload: QueryRequest, tenant_id: int = Depends(
             detail=f"Error executing similarity query: {str(e)}"
         )
 
-@router.get("/collections/{name}/documents")
+@router.get("/collections/{name}/documents", response_model=DocumentsListResponse)
 def get_all_documents(name: str, limit: Optional[int] = 100, tenant_id: int = Depends(get_tenant_id)):
     """
     Retrieves/inspects the indexed documents inside the tenant's isolated vector database.
@@ -246,7 +267,7 @@ def get_all_documents(name: str, limit: Optional[int] = 100, tenant_id: int = De
             detail=f"Error retrieving collection documents: {str(e)}"
         )
 
-@router.put("/collections/{name}/documents")
+@router.put("/collections/{name}/documents", response_model=DocumentUpdateResponse)
 def update_documents(name: str, payload: DocumentUpsert, tenant_id: int = Depends(get_tenant_id)):
     """
     Updates the content/metadata of existing documents and triggers automatic embedding re-generation.
@@ -255,16 +276,7 @@ def update_documents(name: str, payload: DocumentUpsert, tenant_id: int = Depend
         payload (DocumentUpsert): A Pydantic model containing the documents to update.
         tenant_id (int): The ID of the tenant making the request.
     """
-    if len(payload.ids) != len(payload.documents):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Number of ids and documents must be equal."
-        )
-    if payload.metadatas and len(payload.metadatas) != len(payload.ids):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Number of metadatas must match the number of documents if provided."
-        )
+    validate_document_payload(payload)
 
     try:
         collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=name)
@@ -283,7 +295,10 @@ def update_documents(name: str, payload: DocumentUpsert, tenant_id: int = Depend
             documents=payload.documents,
             metadatas=payload.metadatas
         )
-        return {"message": f"Successfully updated {len(payload.ids)} documents."}
+        return {
+            "message": f"Successfully updated {len(payload.ids)} documents.",
+            "count": len(payload.ids)
+        }
     except HTTPException as he:
         raise he
     except Exception as e:

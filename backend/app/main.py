@@ -6,7 +6,7 @@ from app.database import init_db
 from app.routes import auth_routes, vdb_routes, pdf_routes
 
 app = FastAPI(
-    title="LunarDB",
+    title="OrchardDB",
     description="A simple, multi-tenant Vector Database as a Service (VDBaaS) trial wrapping ChromaDB.",
     version="1.0.0"
 )

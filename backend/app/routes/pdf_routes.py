@@ -1,9 +1,8 @@
 import io
-from fastapi import APIRouter, Header, HTTPException, Depends, status, UploadFile, File, Form
+from fastapi import APIRouter, Header, HTTPException, Depends, status, UploadFile, File
 from pydantic import BaseModel
-from typing import List
 from app.services.auth_service import verify_api_key, verify_paid_tenant
-from app.chroma_manager import ChromaManager
+from app.dependencies import db_manager
 from app.services import pdf_service
 from app.database import get_db_connection
 
@@ -76,7 +75,7 @@ async def upload_pdf(
             cursor = conn.cursor()
             try:
                 cursor.execute(
-                    "INSERT INTO documents (tenant_id, collection_id, doc_name) VALUES (?, ?, ?)",
+                    "INSERT INTO documents (tenant_id, collection_name, doc_name) VALUES (?, ?, ?)",
                     (tenant_id, collection_name, file.filename)
                 )
                 conn.commit()
@@ -110,7 +109,6 @@ async def upload_pdf(
             )
 
         # 5. Ingest chunks into tenant's isolated ChromaDB collection
-        db_manager = ChromaManager()
         collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=collection_name)
 
         ids = [chunk["id"] for chunk in processed_chunks]
@@ -150,7 +148,7 @@ def delete_pdf(
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT doc_name FROM documents WHERE source_id = ? AND tenant_id = ? AND collection_id = ?",
+            "SELECT doc_name FROM documents WHERE source_id = ? AND tenant_id = ? AND collection_name = ?",
             (source_id, tenant_id, collection_name)
         )
 
@@ -165,7 +163,6 @@ def delete_pdf(
 
     try:
         # 2. Delete all vectors belonging to this source_id in ChromaDB
-        db_manager = ChromaManager()
         collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=collection_name)
         collection.delete(where={"source_id": source_id})
 
@@ -200,7 +197,7 @@ def list_pdf_documents(
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT source_id, doc_name, created_at FROM documents WHERE tenant_id = ? AND collection_id = ?",
+            "SELECT source_id, doc_name, created_at FROM documents WHERE tenant_id = ? AND collection_name = ?",
             (tenant_id, collection_name)
         )
         rows = cursor.fetchall()
@@ -231,7 +228,7 @@ def get_pdf_documents(
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT doc_name FROM documents WHERE source_id = ? AND tenant_id = ? AND collection_id = ?",
+            "SELECT doc_name FROM documents WHERE source_id = ? AND tenant_id = ? AND collection_name = ?",
             (source_id, tenant_id, collection_name)
         )
 
@@ -246,7 +243,6 @@ def get_pdf_documents(
 
     try:
         # 2. Retrieve all vectors from ChromaDB filtered by source_id
-        db_manager = ChromaManager()
         collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=collection_name)
         results = collection.get(where={"source_id": source_id})
 
