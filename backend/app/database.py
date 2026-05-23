@@ -14,20 +14,32 @@ def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with get_db_connection() as conn:
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE IF NOT EXISTS tenants (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL
+                password_hash TEXT NOT NULL,
+                paid_user BOOLEAN DEFAULT 0
             )
         """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS api_keys (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
+                tenant_id INTEGER NOT NULL,
                 key_hash TEXT UNIQUE NOT NULL,
                 key_prefix TEXT NOT NULL,
                 name TEXT NOT NULL,
                 is_active INTEGER NOT NULL DEFAULT 1,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS documents (
+                source_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tenant_id INTEGER NOT NULL,
+                collection_id INTEGER NOT NULL,
+                doc_name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id), 
+                UNIQUE(tenant_id,collection_id,doc_name)
             )
         """)

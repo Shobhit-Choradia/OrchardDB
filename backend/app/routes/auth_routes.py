@@ -4,22 +4,21 @@ from app.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-class UserCredentials(BaseModel):
+class TenantCredentials(BaseModel):
     username: str
     password: str
 
 @router.post("/register")
-def register(creds: UserCredentials):
+def register(creds: TenantCredentials):
     """
-    Endpoint to Register a new user and generates an API key for them.
+    Endpoint to Register a new developer tenant and generates an API key for them.
     """
-
     try:
-        user_id = auth_service.register_user(creds.username, creds.password)
-        # Immediately generate an API key for the newly registered user
-        api_key = auth_service.generate_user_api_key(user_id, "Default Key")
+        tenant_id = auth_service.register_tenant(creds.username, creds.password)
+        # Immediately generate an API key for the newly registered tenant
+        api_key = auth_service.generate_tenant_api_key(tenant_id, "Default Key")
         return {
-            "message": "User registered successfully",
+            "message": "Tenant registered successfully",
             "api_key": api_key
         }
     except Exception as e:
@@ -30,20 +29,18 @@ def register(creds: UserCredentials):
         )
 
 @router.post("/login")
-
-def login(creds: UserCredentials):
+def login(creds: TenantCredentials):
     """
-    Endpoint to Login a user and generates an API key for them.
+    Endpoint to Login a tenant and generates a fresh API key for them.
     """
-
-    user_id = auth_service.verify_user(creds.username, creds.password)
-    if not user_id:
+    tenant_id = auth_service.verify_tenant(creds.username, creds.password)
+    if not tenant_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
         )
-    # Generate a fresh API key for the user upon successful login
-    api_key = auth_service.generate_user_api_key(user_id, "Login Key")
+    # Generate a fresh API key for the tenant upon successful login
+    api_key = auth_service.generate_tenant_api_key(tenant_id, "Login Key")
     return {
         "message": "Login successful",
         "api_key": api_key
@@ -58,19 +55,20 @@ def health():
         "message": "Authentication service is healthy",
         "status" : "200"
     }
-@router.delete("/delete")
-def delete_user(creds: UserCredentials):
-    """
-    Endpoint to delete a user.
-    """
 
-    if not auth_service.delete_user(creds.username, creds.password):
+@router.delete("/delete")
+def delete_tenant(creds: TenantCredentials):
+    """
+    Endpoint to delete a tenant and clean up their credentials.
+    """
+    if not auth_service.delete_tenant(creds.username, creds.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Failed to delete user."
+            detail="Failed to delete tenant."
         )
     return {
-        "message": "User deleted successfully",
+        "message": "Tenant deleted successfully",
         "status" : "200"
     }
+
 
