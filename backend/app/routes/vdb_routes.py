@@ -30,7 +30,7 @@ class CollectionResponse(BaseModel):
     metric: str
 
 class CollectionListResponse(BaseModel):
-    collections: List[str]
+    collections: List[Dict[str, str]]
 
 class DocumentUpsertResponse(BaseModel):
     message: str
@@ -65,13 +65,13 @@ class DocumentUpdateResponse(BaseModel):
 def create_collection(payload: CollectionCreate, tenant_id: int = Depends(get_tenant_id)):
     """
     Creates a new isolated vector collection for the authenticated developer tenant.
-    
     Isolation is achieved by internally prefixing collection names with the tenant_id.
     """
+
     try:
-        db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=payload.name, metric=payload.metric)
+        db_manager.create_scoped_collection(tenant_id=str(tenant_id), name=payload.name, metric=payload.metric)
         return {
-            "message": f"Collection '{payload.name}' initialized successfully.",
+            "message": f"Success: Collection '{payload.name}' initialized.",
             "collection_name": payload.name,
             "metric": payload.metric or "cosine"
         }

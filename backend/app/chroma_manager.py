@@ -68,17 +68,41 @@ class ChromaManager:
         """Prefixes collection names with the developer's unique tenant_id."""
         return f"tenant_{tenant_id}_{collection_name}"
 
-    def get_scoped_collection(self, tenant_id: str, name: str, metric: str = "cosine") -> chromadb.Collection:
+    def create_scoped_collection(self, tenant_id: str, name: str, metric: str = "cosine") -> chromadb.Collection:
         """Returns a native Chroma Collection scoped to the tenant.
         Once retrieved, the caller can use all native Chroma Collection methods 
         (e.g., .add(), .query(), .get(), .delete()) directly on this object.
         """
         scoped_name = self._scope_name(tenant_id, name)
-        return self.client.get_or_create_collection(
+        exists = False
+
+        try:
+            self.client.get_collection(scoped_name)
+            exists = True
+            
+        except Exception:
+            pass
+        
+        if exists:
+            raise ValueError("Collection already exists please delete old collection first.")
+
+        return self.client.create_collection(
             name=scoped_name, 
             metadata={"hnsw:space": metric},
             embedding_function=self.fallback_ef
         )
+
+    def get_scoped_collection(self, tenant_id: str, name: str) -> chromadb.Collection:
+        """Returns a native Chroma Collection scoped to the tenant.
+        Once retrieved, the caller can use all native Chroma Collection methods 
+        (e.g., .add(), .query(), .get(), .delete()) directly on this object.
+        """
+        scoped_name = self._scope_name(tenant_id, name)
+        collection = self.client.get_collection(name=scoped_name, embedding_function=self.fallback_ef)
+
+        if not collection:
+            raise ValueError("Collection not found")
+        return collection
 
     def delete_scoped_collection(self, tenant_id: str, name: str):
         """Deletes a collection scoped to the tenant."""
@@ -88,5 +112,15 @@ class ChromaManager:
     def list_scoped_collections(self, tenant_id: str) -> list[str]:
         """Lists all collection names belonging to a specific tenant, stripping the prefix."""
         prefix = f"tenant_{tenant_id}_"
-        all_cols = self.client.list_collections()
-        return [col.name[len(prefix):] for col in all_cols if col.name.startswith(prefix)]
+        all_collections = self.client.list_collections()
+        
+        output = [
+        {
+            "name": collection.name.replace(prefix, ""), 
+            "metric": (collection.metadata or {}).get("hnsw:space", "cosine")
+        } 
+        for collection in all_collections 
+        if collection.name.startswith(prefix)
+    ]
+
+        return output

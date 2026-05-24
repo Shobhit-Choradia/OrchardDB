@@ -1,508 +1,606 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Moon, Sun, FolderOpen, Plus, Lock, Trash2, 
-  CloudUpload, Copy, RotateCw, Eye, EyeOff, X, 
+import
+{
+  Moon, Sun, FolderOpen, Plus, Lock, Trash2,
+  CloudUpload, Copy, RotateCw, Eye, EyeOff, X,
   LogOut, CheckCircle2, AlertTriangle, Search, Database, ChevronRight,
   Sparkles, FileText
 } from "lucide-react";
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 
-export default function App() {
+export default function App ()
+{
   // --- State Configuration ---
-  const [theme, setTheme] = useState(localStorage.getItem("orchard_theme") || "dark");
-  const [username, setUsername] = useState(localStorage.getItem("orchard_username") || null);
-  const [apiKey, setApiKey] = useState(localStorage.getItem("orchard_api_key") || null);
-  const [token, setToken] = useState(localStorage.getItem("orchard_token") || null);
-  const [showKey, setShowKey] = useState(false);
-  
-  const [collections, setCollections] = useState([]);
-  const [activeCollection, setActiveCollection] = useState(null);
-  
+  const [ theme, setTheme ] = useState( localStorage.getItem( "orchard_theme" ) || "dark" );
+  const [ username, setUsername ] = useState( localStorage.getItem( "orchard_username" ) || null );
+  const [ apiKey, setApiKey ] = useState( localStorage.getItem( "orchard_api_key" ) || null );
+  const [ token, setToken ] = useState( localStorage.getItem( "orchard_token" ) || null );
+  const [ showKey, setShowKey ] = useState( false );
+
+  const [ collections, setCollections ] = useState( [] );
+  const [ activeCollection, setActiveCollection ] = useState( null );
+
   // UI Tabs & Toggles
-  const [activeTab, setActiveTab] = useState("query");
-  const [codeLang, setCodeLang] = useState("python");
-  const [authModal, setAuthModal] = useState({ open: false, mode: "login" }); // login / register
-  const [createColModal, setCreateColModal] = useState(false);
-  const [toasts, setToasts] = useState([]);
-  
+  const [ activeTab, setActiveTab ] = useState( "query" );
+  const [ codeLang, setCodeLang ] = useState( "python" );
+  const [ authModal, setAuthModal ] = useState( { open: false, mode: "login" } ); // login / register
+  const [ createColModal, setCreateColModal ] = useState( false );
+  const [ toasts, setToasts ] = useState( [] );
+
   // Forms & Inputs
-  const [authUsername, setAuthUsername] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [colName, setColName] = useState("");
-  const [colMetric, setColMetric] = useState("cosine");
-  
+  const [ authUsername, setAuthUsername ] = useState( "" );
+  const [ authPassword, setAuthPassword ] = useState( "" );
+  const [ colName, setColName ] = useState( "" );
+  const [ colMetric, setColMetric ] = useState( "cosine" );
+
   // Search Sandbox
-  const [queryText, setQueryText] = useState("");
-  const [queryLimit, setQueryLimit] = useState(5);
-  const [queryResults, setQueryResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  
+  const [ queryText, setQueryText ] = useState( "" );
+  const [ queryLimit, setQueryLimit ] = useState( 5 );
+  const [ queryResults, setQueryResults ] = useState( [] );
+  const [ isSearching, setIsSearching ] = useState( false );
+
   // Index Document Sandbox
-  const [docId, setDocId] = useState("");
-  const [docText, setDocText] = useState("");
-  const [docMeta, setDocMeta] = useState("");
-  const [isIndexing, setIsIndexing] = useState(false);
-  const [collectionDocs, setCollectionDocs] = useState([]);
-  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [ docId, setDocId ] = useState( "" );
+  const [ docText, setDocText ] = useState( "" );
+  const [ docMeta, setDocMeta ] = useState( "" );
+  const [ isIndexing, setIsIndexing ] = useState( false );
+  const [ collectionDocs, setCollectionDocs ] = useState( [] );
+  const [ isLoadingDocs, setIsLoadingDocs ] = useState( false );
 
   // --- Premium PDF States ---
-  const [isPremium, setIsPremium] = useState(false);
-  const [pdfFiles, setPdfFiles] = useState([]);
-  const [isLoadingPdfs, setIsLoadingPdfs] = useState(false);
-  const [selectedPdf, setSelectedPdf] = useState(null);
-  const [pdfChunks, setPdfChunks] = useState([]);
-  const [isLoadingChunks, setIsLoadingChunks] = useState(false);
-  const [pdfFileToUpload, setPdfFileToUpload] = useState(null);
-  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const [ isPremium, setIsPremium ] = useState( false );
+  const [ pdfFiles, setPdfFiles ] = useState( [] );
+  const [ isLoadingPdfs, setIsLoadingPdfs ] = useState( false );
+  const [ selectedPdf, setSelectedPdf ] = useState( null );
+  const [ pdfChunks, setPdfChunks ] = useState( [] );
+  const [ isLoadingChunks, setIsLoadingChunks ] = useState( false );
+  const [ pdfFileToUpload, setPdfFileToUpload ] = useState( null );
+  const [ isUploadingPdf, setIsUploadingPdf ] = useState( false );
 
   // --- Effects ---
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("orchard_theme", theme);
-  }, [theme]);
+  useEffect( () =>
+  {
+    document.documentElement.setAttribute( "data-theme", theme );
+    localStorage.setItem( "orchard_theme", theme );
+  }, [ theme ] );
 
-  useEffect(() => {
-    if (token) {
+  useEffect( () =>
+  {
+    if ( token )
+    {
       fetchCollections();
       fetchPremiumStatus();
     }
-  }, [token]);
+  }, [ token ] );
 
-  useEffect(() => {
-    if (activeCollection && activeTab === "documents") {
+  useEffect( () =>
+  {
+    if ( activeCollection && activeTab === "documents" )
+    {
       fetchDocuments();
-    } else if (activeCollection && activeTab === "pdf" && isPremium) {
+    } else if ( activeCollection && activeTab === "pdf" && isPremium )
+    {
       fetchPdfFiles();
     }
-  }, [activeCollection, activeTab, isPremium]);
+  }, [ activeCollection, activeTab, isPremium ] );
 
   // --- Toast Handler ---
-  const triggerToast = (message, type = "success") => {
+  const triggerToast = ( message, type = "success" ) =>
+  {
     const id = Date.now();
     let displayMessage = message;
-    if (message && typeof message === "object") {
-      try {
-        displayMessage = message.detail || JSON.stringify(message);
-      } catch {
-        displayMessage = String(message);
+    if ( message && typeof message === "object" )
+    {
+      try
+      {
+        displayMessage = message.detail || JSON.stringify( message );
+      } catch
+      {
+        displayMessage = String( message );
       }
     }
-    setToasts(prev => [...prev, { id, message: displayMessage, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3500);
+    setToasts( prev => [ ...prev, { id, message: displayMessage, type } ] );
+    setTimeout( () =>
+    {
+      setToasts( prev => prev.filter( t => t.id !== id ) );
+    }, 3500 );
   };
 
   // --- Premium API Integrations ---
-  const fetchPremiumStatus = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/status`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+  const fetchPremiumStatus = async () =>
+  {
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/auth/status`, {
+        headers: { "Authorization": `Bearer ${ token }` }
+      } );
       const data = await res.json();
-      if (res.ok) {
-        setIsPremium(data.is_premium);
+      if ( res.ok )
+      {
+        setIsPremium( data.is_premium );
       }
-    } catch (e) {
-      console.error("Failed to fetch premium billing status", e);
+    } catch ( e )
+    {
+      console.error( "Failed to fetch premium billing status", e );
     }
   };
 
-  const handleUpgradeToPremium = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/upgrade`, {
+  const handleUpgradeToPremium = async () =>
+  {
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/auth/upgrade`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+        headers: { "Authorization": `Bearer ${ token }` }
+      } );
       const data = await res.json();
-      if (res.ok) {
-        setIsPremium(true);
-        triggerToast(data.message, "success");
-      } else {
-        triggerToast(data.detail || "Upgrade failed.", "error");
+      if ( res.ok )
+      {
+        setIsPremium( true );
+        triggerToast( data.message, "success" );
+      } else
+      {
+        triggerToast( data.detail || "Upgrade failed.", "error" );
       }
-    } catch {
-      triggerToast("Error contacting payment gateway simulation.", "error");
+    } catch
+    {
+      triggerToast( "Error contacting payment gateway simulation.", "error" );
     }
   };
 
-  const fetchPdfFiles = async () => {
-    setIsLoadingPdfs(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+  const fetchPdfFiles = async () =>
+  {
+    setIsLoadingPdfs( true );
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/documents`, {
+        headers: { "Authorization": `Bearer ${ token }` }
+      } );
       const data = await res.json();
-      setIsLoadingPdfs(false);
-      if (res.ok) {
-        setPdfFiles(data.documents || []);
-      } else {
-        triggerToast(data.detail || "Error loading uploaded files.", "error");
+      setIsLoadingPdfs( false );
+      if ( res.ok )
+      {
+        setPdfFiles( data.documents || [] );
+      } else
+      {
+        triggerToast( data.detail || "Error loading uploaded files.", "error" );
       }
-    } catch {
-      setIsLoadingPdfs(false);
-      triggerToast("Network communication error with PDF services.", "error");
+    } catch
+    {
+      setIsLoadingPdfs( false );
+      triggerToast( "Network communication error with PDF services.", "error" );
     }
   };
 
-  const handlePdfUpload = async (e) => {
+  const handlePdfUpload = async ( e ) =>
+  {
     e.preventDefault();
-    if (!pdfFileToUpload) {
-      triggerToast("Please select a PDF document first.", "error");
+    if ( !pdfFileToUpload )
+    {
+      triggerToast( "Please select a PDF document first.", "error" );
       return;
     }
 
     const formData = new FormData();
-    formData.append("file", pdfFileToUpload);
+    formData.append( "file", pdfFileToUpload );
 
-    setIsUploadingPdf(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/upload`, {
+    setIsUploadingPdf( true );
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/upload`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}` },
+        headers: { "Authorization": `Bearer ${ token }` },
         body: formData
-      });
+      } );
       const data = await res.json();
-      setIsUploadingPdf(false);
-      if (res.ok) {
-        triggerToast(data.message, "success");
-        setPdfFileToUpload(null);
-        const fileInput = document.getElementById("pdf-file-input");
-        if (fileInput) fileInput.value = "";
+      setIsUploadingPdf( false );
+      if ( res.ok )
+      {
+        triggerToast( data.message, "success" );
+        setPdfFileToUpload( null );
+        const fileInput = document.getElementById( "pdf-file-input" );
+        if ( fileInput ) fileInput.value = "";
         fetchPdfFiles();
-      } else {
-        triggerToast(data.detail || "Upload failed.", "error");
+      } else
+      {
+        triggerToast( data.detail || "Upload failed.", "error" );
       }
-    } catch {
-      setIsUploadingPdf(false);
-      triggerToast("Error executing PDF scan & upload.", "error");
+    } catch
+    {
+      setIsUploadingPdf( false );
+      triggerToast( "Error executing PDF scan & upload.", "error" );
     }
   };
 
-  const handlePdfDelete = async (sourceId) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this PDF and all its indexed vector chunks?");
-    if (!confirmDelete) return;
+  const handlePdfDelete = async ( sourceId ) =>
+  {
+    const confirmDelete = window.confirm( "Are you sure you want to delete this PDF and all its indexed vector chunks?" );
+    if ( !confirmDelete ) return;
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents/${sourceId}`, {
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/documents/${ sourceId }`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+        headers: { "Authorization": `Bearer ${ token }` }
+      } );
       const data = await res.json();
-      if (res.ok) {
-        triggerToast(data.message, "success");
-        if (selectedPdf && selectedPdf.source_id === sourceId) {
-          setSelectedPdf(null);
-          setPdfChunks([]);
+      if ( res.ok )
+      {
+        triggerToast( data.message, "success" );
+        if ( selectedPdf && selectedPdf.source_id === sourceId )
+        {
+          setSelectedPdf( null );
+          setPdfChunks( [] );
         }
         fetchPdfFiles();
-      } else {
-        triggerToast(data.detail || "Delete failed.", "error");
+      } else
+      {
+        triggerToast( data.detail || "Delete failed.", "error" );
       }
-    } catch {
-      triggerToast("Error executing delete command.", "error");
+    } catch
+    {
+      triggerToast( "Error executing delete command.", "error" );
     }
   };
 
-  const fetchPdfChunks = async (pdfObj) => {
-    setSelectedPdf(pdfObj);
-    setIsLoadingChunks(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents/${pdfObj.source_id}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+  const fetchPdfChunks = async ( pdfObj ) =>
+  {
+    setSelectedPdf( pdfObj );
+    setIsLoadingChunks( true );
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/documents/${ pdfObj.source_id }`, {
+        headers: { "Authorization": `Bearer ${ token }` }
+      } );
       const data = await res.json();
-      setIsLoadingChunks(false);
-      if (res.ok) {
-        setPdfChunks(data.chunks || []);
-      } else {
-        triggerToast(data.detail || "Failed to load document chunks.", "error");
+      setIsLoadingChunks( false );
+      if ( res.ok )
+      {
+        setPdfChunks( data.chunks || [] );
+      } else
+      {
+        triggerToast( data.detail || "Failed to load document chunks.", "error" );
       }
-    } catch {
-      setIsLoadingChunks(false);
-      triggerToast("Failed to fetch document chunks.", "error");
+    } catch
+    {
+      setIsLoadingChunks( false );
+      triggerToast( "Failed to fetch document chunks.", "error" );
     }
   };
 
   // --- Core API Integrations ---
-  const fetchCollections = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/vdb/collections`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+  const fetchCollections = async () =>
+  {
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/vdb/collections`, {
+        headers: { "Authorization": `Bearer ${ token }` }
+      } );
       const data = await res.json();
-      if (res.ok) {
-        setCollections(data.collections || []);
-      } else {
-        triggerToast(data.detail || "Error loading collections.", "error");
+      if ( res.ok )
+      {
+        setCollections( data.collections || [] );
+      } else
+      {
+        triggerToast( data.detail || "Error loading collections.", "error" );
       }
-    } catch {
-      triggerToast("Failed to reach vector database service.", "error");
+    } catch
+    {
+      triggerToast( "Failed to reach vector database service.", "error" );
     }
   };
 
-  const handleAuthSubmit = async (e) => {
+  const handleAuthSubmit = async ( e ) =>
+  {
     e.preventDefault();
-    if (!authUsername.trim() || !authPassword) {
-      triggerToast("Username and password are required.", "error");
+    if ( !authUsername.trim() || !authPassword )
+    {
+      triggerToast( "Username and password are required.", "error" );
       return;
     }
 
     const endpoint = authModal.mode === "login" ? "/auth/login" : "/auth/register";
-    try {
-      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }${ endpoint }`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: authUsername.trim(), password: authPassword })
-      });
+        body: JSON.stringify( { username: authUsername.trim(), password: authPassword } )
+      } );
       const data = await res.json();
-      
-      if (res.ok) {
-        setUsername(authUsername.trim());
-        setToken(data.token);
-        localStorage.setItem("orchard_username", authUsername.trim());
-        localStorage.setItem("orchard_token", data.token);
-        
-        if (data.api_key) {
-          setApiKey(data.api_key);
-          localStorage.setItem("orchard_api_key", data.api_key);
-        } else {
-          setApiKey(null);
-          localStorage.removeItem("orchard_api_key");
+
+      if ( res.ok )
+      {
+        setUsername( authUsername.trim() );
+        setToken( data.token );
+        localStorage.setItem( "orchard_username", authUsername.trim() );
+        localStorage.setItem( "orchard_token", data.token );
+
+        if ( data.api_key )
+        {
+          setApiKey( data.api_key );
+          localStorage.setItem( "orchard_api_key", data.api_key );
+        } else
+        {
+          setApiKey( null );
+          localStorage.removeItem( "orchard_api_key" );
         }
-        
-        setAuthModal({ open: false, mode: "login" });
-        setAuthUsername("");
-        setAuthPassword("");
+
+        setAuthModal( { open: false, mode: "login" } );
+        setAuthUsername( "" );
+        setAuthPassword( "" );
         // Programmatically clear trailing hashes like #architecture
-        window.history.pushState("", document.title, window.location.pathname + window.location.search);
-        triggerToast(authModal.mode === "login" ? "Signed in successfully!" : "Account registered successfully!", "success");
-      } else {
-        triggerToast(data.detail || "Authentication failed.", "error");
+        window.history.pushState( "", document.title, window.location.pathname + window.location.search );
+        triggerToast( authModal.mode === "login" ? "Signed in successfully!" : "Account registered successfully!", "success" );
+      } else
+      {
+        triggerToast( data.detail || "Authentication failed.", "error" );
       }
-    } catch {
-      triggerToast("Connection failed. Ensure backend API is active.", "error");
+    } catch
+    {
+      triggerToast( "Connection failed. Ensure backend API is active.", "error" );
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("orchard_username");
-    localStorage.removeItem("orchard_token");
-    localStorage.removeItem("orchard_api_key");
-    setUsername(null);
-    setToken(null);
-    setApiKey(null);
-    setCollections([]);
-    setActiveCollection(null);
-    setQueryResults([]);
-    setCollectionDocs([]);
+  const handleLogout = () =>
+  {
+    localStorage.removeItem( "orchard_username" );
+    localStorage.removeItem( "orchard_token" );
+    localStorage.removeItem( "orchard_api_key" );
+    setUsername( null );
+    setToken( null );
+    setApiKey( null );
+    setCollections( [] );
+    setActiveCollection( null );
+    setQueryResults( [] );
+    setCollectionDocs( [] );
     // Programmatically clear trailing hashes like #architecture
-    window.history.pushState("", document.title, window.location.pathname + window.location.search);
-    triggerToast("Logged out successfully.", "success");
+    window.history.pushState( "", document.title, window.location.pathname + window.location.search );
+    triggerToast( "Logged out successfully.", "success" );
   };
 
-  const handleCreateCollection = async (e) => {
+  const handleCreateCollection = async ( e ) =>
+  {
     e.preventDefault();
-    const formattedName = colName.trim().replace(/\s+/g, "-");
-    if (!formattedName) return;
+    const formattedName = colName.trim().replace( /\s+/g, "-" );
+    if ( !formattedName ) return;
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/vdb/collections`, {
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/vdb/collections`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${ token }`
         },
-        body: JSON.stringify({ name: formattedName, metric: colMetric })
-      });
+        body: JSON.stringify( { 
+          name: formattedName,
+          metric: colMetric
+        } )
+      } );
       const data = await res.json();
-      
-      if (res.ok) {
-        setColName("");
-        setCreateColModal(false);
-        triggerToast(`Collection '${formattedName}' created!`, "success");
+
+      if ( res.ok )
+      {
+        setColName( "" );
+        setCreateColModal( false );
+        triggerToast( `Collection '${ formattedName }' created!`, "success" );
         await fetchCollections();
-        setActiveCollection(formattedName);
-        setActiveTab("query");
-      } else {
-        triggerToast(data.detail || "Failed to create collection.", "error");
+        setActiveCollection( formattedName );
+        setActiveTab( "query" );
+      } else
+      {
+        triggerToast( data.detail || "Failed to create collection.", "error" );
       }
-    } catch {
-      triggerToast("Error communicating with creation API.", "error");
+    } catch
+    {
+      triggerToast( "Error communicating with creation API.", "error" );
     }
   };
 
-  const handleDeleteCollection = async () => {
-    if (!activeCollection) return;
-    const confirmDelete = window.confirm(`Permanently delete collection '${activeCollection}' and all its vectors?`);
-    if (!confirmDelete) return;
+  const handleDeleteCollection = async () =>
+  {
+    if ( !activeCollection ) return;
+    const confirmDelete = window.confirm( `Permanently delete collection '${ activeCollection }' and all its vectors?` );
+    if ( !confirmDelete ) return;
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}`, {
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/vdb/collections/${ activeCollection }`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      
-      if (res.ok) {
-        triggerToast(`Collection '${activeCollection}' deleted.`, "success");
-        setActiveCollection(null);
+        headers: { "Authorization": `Bearer ${ token }` }
+      } );
+
+      if ( res.ok )
+      {
+        triggerToast( `Collection '${ activeCollection }' deleted.`, "success" );
+        setActiveCollection( null );
         fetchCollections();
-      } else {
+      } else
+      {
         const data = await res.json();
-        triggerToast(data.detail || "Error deleting collection.", "error");
+        triggerToast( data.detail || "Error deleting collection.", "error" );
       }
-    } catch {
-      triggerToast("Server write error.", "error");
+    } catch
+    {
+      triggerToast( "Server write error.", "error" );
     }
   };
 
-  const executeSearch = async () => {
-    if (!queryText.trim()) {
-      triggerToast("Please enter a similarity search query.", "error");
+  const executeSearch = async () =>
+  {
+    if ( !queryText.trim() )
+    {
+      triggerToast( "Please enter a similarity search query.", "error" );
       return;
     }
 
-    setIsSearching(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}/query`, {
+    setIsSearching( true );
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/vdb/collections/${ activeCollection }/query`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${ token }`
         },
-        body: JSON.stringify({
+        body: JSON.stringify( {
           query_text: queryText.trim(),
-          n_results: parseInt(queryLimit)
-        })
-      });
+          n_results: parseInt( queryLimit )
+        } )
+      } );
       const data = await res.json();
-      setIsSearching(false);
-      
-      if (res.ok) {
-        setQueryResults(data.results || []);
-      } else {
-        triggerToast(data.detail || "Search index query failed.", "error");
+      setIsSearching( false );
+
+      if ( res.ok )
+      {
+        setQueryResults( data.results || [] );
+      } else
+      {
+        triggerToast( data.detail || "Search index query failed.", "error" );
       }
-    } catch {
-      setIsSearching(false);
-      triggerToast("Error executing query search.", "error");
+    } catch
+    {
+      setIsSearching( false );
+      triggerToast( "Error executing query search.", "error" );
     }
   };
 
-  const fetchDocuments = async () => {
-    setIsLoadingDocs(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}/documents`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+  const fetchDocuments = async () =>
+  {
+    setIsLoadingDocs( true );
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/vdb/collections/${ activeCollection }/documents`, {
+        headers: { "Authorization": `Bearer ${ token }` }
+      } );
       const data = await res.json();
-      setIsLoadingDocs(false);
-      
-      if (res.ok) {
+      setIsLoadingDocs( false );
+
+      if ( res.ok )
+      {
         const ids = data.ids || [];
         const docs = data.documents || [];
         const metas = data.metadatas || [];
-        const list = ids.map((id, index) => ({
+        const list = ids.map( ( id, index ) => ( {
           id,
-          document: docs[index] || "",
-          metadata: metas[index] || {}
-        }));
-        setCollectionDocs(list);
-      } else {
-        triggerToast("Failed to fetch current documents.", "error");
+          document: docs[ index ] || "",
+          metadata: metas[ index ] || {}
+        } ) );
+        setCollectionDocs( list );
+      } else
+      {
+        triggerToast( "Failed to fetch current documents.", "error" );
       }
-    } catch {
-      setIsLoadingDocs(false);
-      triggerToast("Network communication error.", "error");
+    } catch
+    {
+      setIsLoadingDocs( false );
+      triggerToast( "Network communication error.", "error" );
     }
   };
 
-  const indexNewDocument = async () => {
-    if (!docId.trim() || !docText.trim()) {
-      triggerToast("Document ID and body text are required.", "error");
+  const indexNewDocument = async () =>
+  {
+    if ( !docId.trim() || !docText.trim() )
+    {
+      triggerToast( "Document ID and body text are required.", "error" );
       return;
     }
 
     let metadatas = null;
-    if (docMeta.trim()) {
-      try {
-        metadatas = [JSON.parse(docMeta.trim())];
-      } catch {
-        triggerToast("Metadata must be valid key-value JSON format.", "error");
+    if ( docMeta.trim() )
+    {
+      try
+      {
+        metadatas = [ JSON.parse( docMeta.trim() ) ];
+      } catch
+      {
+        triggerToast( "Metadata must be valid key-value JSON format.", "error" );
         return;
       }
     }
 
-    setIsIndexing(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}/upsert_documents`, {
+    setIsIndexing( true );
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/vdb/collections/${ activeCollection }/upsert_documents`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${ token }`
         },
-        body: JSON.stringify({
-          ids: [docId.trim()],
-          documents: [docText.trim()],
+        body: JSON.stringify( {
+          ids: [ docId.trim() ],
+          documents: [ docText.trim() ],
           metadatas: metadatas
-        })
-      });
+        } )
+      } );
       const data = await res.json();
-      setIsIndexing(false);
-      
-      if (res.ok) {
-        triggerToast("Document indexed successfully!", "success");
-        setDocId("");
-        setDocText("");
-        setDocMeta("");
+      setIsIndexing( false );
+
+      if ( res.ok )
+      {
+        triggerToast( "Document indexed successfully!", "success" );
+        setDocId( "" );
+        setDocText( "" );
+        setDocMeta( "" );
         fetchDocuments();
-      } else {
-        triggerToast(data.detail || "Error indexing document.", "error");
+      } else
+      {
+        triggerToast( data.detail || "Error indexing document.", "error" );
       }
-    } catch {
-      setIsIndexing(false);
-      triggerToast("Network write error.", "error");
+    } catch
+    {
+      setIsIndexing( false );
+      triggerToast( "Network write error.", "error" );
     }
   };
 
-  const deleteSingleDoc = async (idToDelete) => {
-    const confirmDocDel = window.confirm(`Delete document '${idToDelete}'?`);
-    if (!confirmDocDel) return;
+  const deleteSingleDoc = async ( idToDelete ) =>
+  {
+    const confirmDocDel = window.confirm( `Delete document '${ idToDelete }'?` );
+    if ( !confirmDocDel ) return;
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}/documents`, {
+    try
+    {
+      const res = await fetch( `${ API_BASE_URL }/vdb/collections/${ activeCollection }/documents`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${ token }`
         },
-        body: JSON.stringify({ ids: [idToDelete] })
-      });
-      
-      if (res.ok) {
-        triggerToast("Document removed.", "success");
+        body: JSON.stringify( { ids: [ idToDelete ] } )
+      } );
+
+      if ( res.ok )
+      {
+        triggerToast( "Document removed.", "success" );
         fetchDocuments();
-      } else {
+      } else
+      {
         const data = await res.json();
-        triggerToast(data.detail || "Failed to delete document.", "error");
+        triggerToast( data.detail || "Failed to delete document.", "error" );
       }
-    } catch {
-      triggerToast("Server response failure.", "error");
+    } catch
+    {
+      triggerToast( "Server response failure.", "error" );
     }
   };
 
   // --- Dynamic Code Snippets Block ---
-  const generateSnippet = () => {
+  const generateSnippet = () =>
+  {
     const key = apiKey || "your_orchard_api_key";
     const col = activeCollection || "collection_name";
-    if (codeLang === "python") {
+    if ( codeLang === "python" )
+    {
       return `import requests
 
 # Vector client details
 BASE_URL = "http://127.0.0.1:8000/api/vdb"
 HEADERS = {
-    "X-API-Key": "${key}",
+    "X-API-Key": "${ key }",
     "Content-Type": "application/json"
 }
 
@@ -512,25 +610,26 @@ payload_upsert = {
     "documents": ["OrchardDB wraps ChromaDB securely, providing robust trials."],
     "metadatas": [{"category": "demo"}]
 }
-requests.post(f"{BASE_URL}/collections/${col}/upsert_documents", headers=HEADERS, json=payload_upsert)
+requests.post(f"{BASE_URL}/collections/${ col }/upsert_documents", headers=HEADERS, json=payload_upsert)
 
 # 2. Perform similarity search query
 payload_query = {
     "query_text": "What is OrchardDB?",
     "n_results": 2
 }
-response = requests.post(f"{BASE_URL}/collections/${col}/query", headers=HEADERS, json=payload_query)
+response = requests.post(f"{BASE_URL}/collections/${ col }/query", headers=HEADERS, json=payload_query)
 print(response.json())`;
-    } else {
+    } else
+    {
       return `// JavaScript Fetch SDK Integration
 const baseUrl = "http://127.0.0.1:8000/api/vdb";
 const headers = {
-  "X-API-Key": "${key}",
+  "X-API-Key": "${ key }",
   "Content-Type": "application/json"
 };
 
 // 1. Index document into collection namespace
-fetch(\`\${baseUrl}/collections/${col}/upsert_documents\`, {
+fetch(\`\${baseUrl}/collections/${ col }/upsert_documents\`, {
   method: "POST",
   headers: headers,
   body: JSON.stringify({
@@ -543,7 +642,7 @@ fetch(\`\${baseUrl}/collections/${col}/upsert_documents\`, {
 .then(data => console.log("Indexed successfully:", data));
 
 // 2. Query similarity matches
-fetch(\`\${baseUrl}/collections/${col}/query\`, {
+fetch(\`\${baseUrl}/collections/${ col }/query\`, {
   method: "POST",
   headers: headers,
   body: JSON.stringify({
@@ -556,9 +655,10 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
     }
   };
 
-  const copyToClipboard = (text, toastMsg) => {
-    navigator.clipboard.writeText(text);
-    triggerToast(toastMsg, "success");
+  const copyToClipboard = ( text, toastMsg ) =>
+  {
+    navigator.clipboard.writeText( text );
+    triggerToast( toastMsg, "success" );
   };
 
   return (
@@ -566,7 +666,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
       {/* Header Panel */}
       <header className="main-header">
         <div className="header-container">
-          <div className="logo" onClick={() => setActiveCollection(null)}>
+          <div className="logo" onClick={() => setActiveCollection( null )}>
             <Database className="glow-icon" />
             <span className="logo-text">Orchard<span className="logo-accent">DB</span></span>
             <span className="badge">Trial v1.0</span>
@@ -574,7 +674,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
 
           {token ? (
             <nav className="nav-links">
-              <button className="nav-link-btn" onClick={() => { setActiveCollection(null); setActiveTab("query"); }}>
+              <button className="nav-link-btn" onClick={() => { setActiveCollection( null ); setActiveTab( "query" ); }}>
                 Workspace Console
               </button>
             </nav>
@@ -582,21 +682,21 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
             <nav className="nav-links">
               <a href="#features">Features</a>
               <a href="#architecture">Architecture</a>
-              <button className="nav-btn-console btn btn-sm btn-secondary" onClick={() => setAuthModal({ open: true, mode: "login" })}>
+              <button className="nav-btn-console btn btn-sm btn-secondary" onClick={() => setAuthModal( { open: true, mode: "login" } )}>
                 Enter Console
               </button>
             </nav>
           )}
 
           <div className="header-controls">
-            <button 
-              onClick={() => setTheme(prev => prev === "dark" ? "light" : "dark")} 
-              className="icon-btn" 
+            <button
+              onClick={() => setTheme( prev => prev === "dark" ? "light" : "dark" )}
+              className="icon-btn"
               title="Toggle Light/Dark Theme"
             >
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            
+
             {token && username && (
               <div id="user-status-container">
                 <span id="header-username">{username}</span>
@@ -612,7 +712,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
 
       {/* Main Content Viewport */}
       <main className="content-container">
-        
+
         {/* LANDING MARKETING HERO (Visible when logged out) */}
         {!token && (
           <section className="landing-section">
@@ -624,12 +724,12 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
               <p className="hero-subtitle">
                 OrchardDB wraps ChromaDB with seamless multi-tenancy, instant API key authorization, and a stunning developer console. Start trial indexing in seconds.
               </p>
-              
+
               <div className="hero-actions">
-                <button className="btn btn-primary btn-lg" onClick={() => setAuthModal({ open: true, mode: "register" })}>
+                <button className="btn btn-primary btn-lg" onClick={() => setAuthModal( { open: true, mode: "register" } )}>
                   Start Trial Free
                 </button>
-                <button className="btn btn-secondary btn-lg" onClick={() => setAuthModal({ open: true, mode: "login" })}>
+                <button className="btn btn-secondary btn-lg" onClick={() => setAuthModal( { open: true, mode: "login" } )}>
                   Sign In to Console
                 </button>
               </div>
@@ -659,7 +759,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
         {token && (
           <section className="console-section">
             <div className="console-grid">
-              
+
               {/* Credentials Header Panel */}
               <div className="full-width-card welcome-card">
                 <div className="welcome-left">
@@ -680,28 +780,31 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                 <div className="api-key-panel">
                   <span className="panel-label">Active Secret SDK API Key:</span>
                   <div className="api-key-wrapper">
-                    <input 
-                      type={showKey ? "text" : "password"} 
-                      value={apiKey || "•••••••••••••••••••••••• (Hashed for Security)"} 
-                      readOnly 
+                    <input
+                      type={showKey ? "text" : "password"}
+                      value={apiKey || "•••••••••••••••••••••••• (Hashed for Security)"}
+                      readOnly
                       style={{ fontStyle: apiKey ? "normal" : "italic" }}
                     />
-                    <button 
-                      className="icon-btn" 
-                      onClick={() => {
-                        if (apiKey) {
-                          copyToClipboard(apiKey, "API Key copied!");
-                        } else {
-                          triggerToast("API Key is securely hashed. Use the one generated during signup.", "warning");
+                    <button
+                      className="icon-btn"
+                      onClick={() =>
+                      {
+                        if ( apiKey )
+                        {
+                          copyToClipboard( apiKey, "API Key copied!" );
+                        } else
+                        {
+                          triggerToast( "API Key is securely hashed. Use the one generated during signup.", "warning" );
                         }
-                      }} 
+                      }}
                       title="Copy Key"
                       disabled={!apiKey}
                       style={{ opacity: apiKey ? 1 : 0.5 }}
                     >
                       <Copy size={16} />
                     </button>
-                    <button className="icon-btn" onClick={() => setShowKey(prev => !prev)} title={showKey ? "Hide key" : "Show key"}>
+                    <button className="icon-btn" onClick={() => setShowKey( prev => !prev )} title={showKey ? "Hide key" : "Show key"}>
                       {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
@@ -716,7 +819,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                       <FolderOpen />
                       <span>Vector Collections</span>
                     </h3>
-                    <button className="btn btn-sm btn-primary" onClick={() => setCreateColModal(true)}>
+                    <button className="btn btn-sm btn-primary" onClick={() => setCreateColModal( true )}>
                       <Plus size={14} />
                       <span>New</span>
                     </button>
@@ -727,30 +830,32 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                       <div className="empty-state">
                         <FolderOpen />
                         <p>No collections initialized yet.</p>
-                        <button className="btn btn-sm btn-outline" onClick={() => setCreateColModal(true)}>
+                        <button className="btn btn-sm btn-outline" onClick={() => setCreateColModal( true )}>
                           Create First Space
                         </button>
                       </div>
                     ) : (
                       <ul className="collections-list">
-                        {collections.map(col => (
-                          <li 
-                            key={col}
-                            onClick={() => {
-                              setActiveCollection(col);
-                              setQueryResults([]);
-                              setCollectionDocs([]);
-                              setActiveTab("query");
+                        {collections.map( col => (
+                          <li
+                            key={col.name}
+                            onClick={() =>
+                            {
+                              setActiveCollection( col.name );
+                              setColMetric( col.metric );
+                              setQueryResults( [] );
+                              setCollectionDocs( [] );
+                              setActiveTab( "query" );
                             }}
-                            className={`collection-item ${activeCollection === col ? "active" : ""}`}
+                            className={`collection-item ${ activeCollection === col.name ? "active" : "" }`}
                           >
                             <div className="col-info">
-                              <span className="col-name">{col}</span>
-                              <span className="col-metric">Metric: Cosine</span>
+                              <span className="col-name">{col.name}</span>
+                              <span className="col-metric">Metric: {col.metric}</span>
                             </div>
                             <ChevronRight size={16} className="text-muted" />
                           </li>
-                        ))}
+                        ) )}
                       </ul>
                     )}
                   </div>
@@ -760,7 +865,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
               {/* Grid Column 2: Vector Sandbox Playground */}
               <div className="console-col">
                 <div className="console-card">
-                  
+
                   {!activeCollection ? (
                     <div className="empty-state sandbox-locked">
                       <Lock />
@@ -773,7 +878,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                       <div className="card-header border-bottom">
                         <div className="sandbox-title-area">
                           <h3>{activeCollection}</h3>
-                          <span className="metric-badge">cosine</span>
+                          <span className="metric-badge">{colMetric}</span>
                         </div>
                         <button onClick={handleDeleteCollection} className="btn btn-sm btn-danger">
                           <Trash2 size={14} />
@@ -783,35 +888,37 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
 
                       {/* Playground Tabs */}
                       <div className="sandbox-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
-                        <button 
-                          className={`tab-btn ${activeTab === "query" ? "active" : ""}`}
-                          onClick={() => setActiveTab("query")}
+                        <button
+                          className={`tab-btn ${ activeTab === "query" ? "active" : "" }`}
+                          onClick={() => setActiveTab( "query" )}
                         >
                           Semantic Search Sandbox
                         </button>
-                        <button 
-                          className={`tab-btn ${activeTab === "documents" ? "active" : ""}`}
-                          onClick={() => {
-                            setActiveTab("documents");
+                        <button
+                          className={`tab-btn ${ activeTab === "documents" ? "active" : "" }`}
+                          onClick={() =>
+                          {
+                            setActiveTab( "documents" );
                             fetchDocuments();
                           }}
                         >
                           Index Documents Table
                         </button>
-                        <button 
-                          className={`tab-btn ${activeTab === "pdf" ? "active" : ""}`}
+                        <button
+                          className={`tab-btn ${ activeTab === "pdf" ? "active" : "" }`}
                           style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-                          onClick={() => {
-                            setActiveTab("pdf");
-                            if (isPremium) fetchPdfFiles();
+                          onClick={() =>
+                          {
+                            setActiveTab( "pdf" );
+                            if ( isPremium ) fetchPdfFiles();
                           }}
                         >
                           <Sparkles size={12} style={{ color: "#f59e0b" }} />
                           <span>PDF Scan & Load</span>
                         </button>
-                        <button 
-                          className={`tab-btn ${activeTab === "code" ? "active" : ""}`}
-                          onClick={() => setActiveTab("code")}
+                        <button
+                          className={`tab-btn ${ activeTab === "code" ? "active" : "" }`}
+                          onClick={() => setActiveTab( "code" )}
                         >
                           Developer SDK Integration
                         </button>
@@ -822,25 +929,25 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                         <div className="tab-content">
                           <div className="query-sandbox-form">
                             <div className="input-group">
-                              <input 
-                                type="text" 
+                              <input
+                                type="text"
                                 value={queryText}
-                                onChange={(e) => setQueryText(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && executeSearch()}
-                                placeholder="Enter natural language query phrase (e.g. 'what is a vector db?')..." 
+                                onChange={( e ) => setQueryText( e.target.value )}
+                                onKeyDown={( e ) => e.key === "Enter" && executeSearch()}
+                                placeholder="Enter natural language query phrase (e.g. 'what is a vector db?')..."
                               />
                               <button onClick={executeSearch} className="btn btn-primary" disabled={isSearching}>
                                 {isSearching ? <RotateCw className="animate-spin" size={16} /> : <Search size={16} />}
                                 <span>{isSearching ? "Searching..." : "Search"}</span>
                               </button>
                             </div>
-                            
+
                             <div className="query-options">
                               <label htmlFor="limit-select">Limit results (K):</label>
-                              <select 
-                                id="limit-select" 
+                              <select
+                                id="limit-select"
                                 value={queryLimit}
-                                onChange={(e) => setQueryLimit(e.target.value)}
+                                onChange={( e ) => setQueryLimit( e.target.value )}
                               >
                                 <option value={3}>3 matches</option>
                                 <option value={5}>5 matches</option>
@@ -858,22 +965,22 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                               </div>
                             ) : (
                               <div className="results-list">
-                                {queryResults.map(match => (
+                                {queryResults.map( match => (
                                   <div key={match.id} className="match-card">
                                     <div className="match-header">
                                       <span className="match-id">{match.id}</span>
                                       <span className="match-distance highlight-text">
-                                        Distance Score: {match.distance !== null ? match.distance.toFixed(4) : "N/A"}
+                                        Distance Score: {match.distance !== null ? match.distance.toFixed( 4 ) : "N/A"}
                                       </span>
                                     </div>
                                     <div className="match-body">{match.document}</div>
-                                    {match.metadata && Object.keys(match.metadata).length > 0 && (
+                                    {match.metadata && Object.keys( match.metadata ).length > 0 && (
                                       <div className="match-meta">
-                                        Metadata: {JSON.stringify(match.metadata)}
+                                        Metadata: {JSON.stringify( match.metadata )}
                                       </div>
                                     )}
                                   </div>
-                                ))}
+                                ) )}
                               </div>
                             )}
                           </div>
@@ -886,32 +993,32 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                           <div className="form-container">
                             <h4>Add New Document to Vector Space</h4>
                             <p className="section-desc">ChromaDB automatically computes text embeddings using its default lightweight Sentence-Transformers pipeline.</p>
-                            
+
                             <div className="form-group">
                               <label>Unique Document ID</label>
-                              <input 
-                                type="text" 
+                              <input
+                                type="text"
                                 value={docId}
-                                onChange={(e) => setDocId(e.target.value)}
-                                placeholder="e.g. doc_101" 
+                                onChange={( e ) => setDocId( e.target.value )}
+                                placeholder="e.g. doc_101"
                               />
                             </div>
                             <div className="form-group">
                               <label>Document Body Text</label>
-                              <textarea 
+                              <textarea
                                 rows={3}
                                 value={docText}
-                                onChange={(e) => setDocText(e.target.value)}
+                                onChange={( e ) => setDocText( e.target.value )}
                                 placeholder="Enter content you want to store and search against..."
                               ></textarea>
                             </div>
                             <div className="form-group">
                               <label>Metadata Attributes JSON (Optional)</label>
-                              <input 
-                                type="text" 
+                              <input
+                                type="text"
                                 value={docMeta}
-                                onChange={(e) => setDocMeta(e.target.value)}
-                                placeholder='e.g. {"category": "AI", "tags": ["search"]}' 
+                                onChange={( e ) => setDocMeta( e.target.value )}
+                                placeholder='e.g. {"category": "AI", "tags": ["search"]}'
                               />
                             </div>
                             <button className="btn btn-primary" onClick={indexNewDocument} disabled={isIndexing}>
@@ -929,7 +1036,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                 <RotateCw className={isLoadingDocs ? "animate-spin" : ""} size={16} />
                               </button>
                             </div>
-                            
+
                             <div className="table-scroll">
                               <table className="documents-table">
                                 <thead>
@@ -948,15 +1055,15 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                       </td>
                                     </tr>
                                   ) : (
-                                    collectionDocs.map(doc => (
+                                    collectionDocs.map( doc => (
                                       <tr key={doc.id}>
                                         <td style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{doc.id}</td>
                                         <td>{doc.document}</td>
-                                        <td className="doc-meta-badge">{JSON.stringify(doc.metadata)}</td>
+                                        <td className="doc-meta-badge">{JSON.stringify( doc.metadata )}</td>
                                         <td>
-                                          <button 
-                                            onClick={() => deleteSingleDoc(doc.id)} 
-                                            className="icon-btn" 
+                                          <button
+                                            onClick={() => deleteSingleDoc( doc.id )}
+                                            className="icon-btn"
                                             style={{ color: "var(--danger-color)" }}
                                             title="Delete document"
                                           >
@@ -964,7 +1071,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                           </button>
                                         </td>
                                       </tr>
-                                    ))
+                                    ) )
                                   )}
                                 </tbody>
                               </table>
@@ -1007,8 +1114,8 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                   <span>Bulk Ingestion</span>
                                 </div>
                               </div>
-                              <button 
-                                className="btn btn-primary" 
+                              <button
+                                className="btn btn-primary"
                                 style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", color: "#fff", padding: "0.75rem 2rem", fontSize: "1rem", fontWeight: "600", borderRadius: "8px", boxShadow: "0 4px 12px rgba(245, 158, 11, 0.25)", cursor: "pointer" }}
                                 onClick={handleUpgradeToPremium}
                               >
@@ -1018,14 +1125,14 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                           ) : (
                             <div className="pdf-service-playground" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
-                                
+
                                 {/* PDF Ingestion Card */}
                                 <div className="form-container" style={{ margin: 0 }}>
                                   <h4>Ingest PDF Document</h4>
                                   <p className="section-desc">Upload a PDF to parse pages semantically and automatically index their chunks into the current collection.</p>
-                                  
+
                                   <form onSubmit={handlePdfUpload} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                                    <div 
+                                    <div
                                       className="file-upload-zone"
                                       style={{
                                         border: "2px dashed var(--border-color)",
@@ -1036,13 +1143,13 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                         cursor: "pointer",
                                         transition: "border-color 0.2s"
                                       }}
-                                      onClick={() => document.getElementById("pdf-file-input").click()}
+                                      onClick={() => document.getElementById( "pdf-file-input" ).click()}
                                     >
                                       <CloudUpload size={32} style={{ color: "var(--text-muted)", marginBottom: "0.5rem" }} />
                                       {pdfFileToUpload ? (
                                         <div>
                                           <p style={{ fontWeight: "600", margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>{pdfFileToUpload.name}</p>
-                                          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>{(pdfFileToUpload.size / 1024).toFixed(1)} KB</p>
+                                          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>{( pdfFileToUpload.size / 1024 ).toFixed( 1 )} KB</p>
                                         </div>
                                       ) : (
                                         <div>
@@ -1050,18 +1157,18 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                           <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0 }}>Max file size: 10MB</p>
                                         </div>
                                       )}
-                                      <input 
-                                        type="file" 
+                                      <input
+                                        type="file"
                                         id="pdf-file-input"
                                         accept=".pdf"
                                         style={{ display: "none" }}
-                                        onChange={(e) => setPdfFileToUpload(e.target.files[0])}
+                                        onChange={( e ) => setPdfFileToUpload( e.target.files[ 0 ] )}
                                       />
                                     </div>
-                                    
-                                    <button 
-                                      type="submit" 
-                                      className="btn btn-primary" 
+
+                                    <button
+                                      type="submit"
+                                      className="btn btn-primary"
                                       disabled={isUploadingPdf || !pdfFileToUpload}
                                       style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
                                     >
@@ -1088,7 +1195,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                       <RotateCw className={isLoadingPdfs ? "animate-spin" : ""} size={14} />
                                     </button>
                                   </div>
-                                  
+
                                   {isLoadingPdfs ? (
                                     <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
                                       <RotateCw className="animate-spin" size={24} />
@@ -1100,10 +1207,10 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                     </div>
                                   ) : (
                                     <div style={{ overflowY: "auto", maxHeight: "250px", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
-                                      {pdfFiles.map(file => (
-                                        <div 
-                                          key={file.source_id} 
-                                          onClick={() => fetchPdfChunks(file)}
+                                      {pdfFiles.map( file => (
+                                        <div
+                                          key={file.source_id}
+                                          onClick={() => fetchPdfChunks( file )}
                                           style={{
                                             display: "flex",
                                             alignItems: "center",
@@ -1120,22 +1227,23 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                             <FileText size={16} style={{ color: "#f59e0b", flexShrink: 0 }} />
                                             <div style={{ minWidth: 0 }}>
                                               <p style={{ fontWeight: "600", fontSize: "0.85rem", margin: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{file.doc_name}</p>
-                                              <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", margin: 0 }}>ID: {file.source_id} • {new Date(file.created_at).toLocaleDateString()}</p>
+                                              <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", margin: 0 }}>ID: {file.source_id} • {new Date( file.created_at ).toLocaleDateString()}</p>
                                             </div>
                                           </div>
-                                          <button 
-                                            onClick={(e) => {
+                                          <button
+                                            onClick={( e ) =>
+                                            {
                                               e.stopPropagation();
-                                              handlePdfDelete(file.source_id);
+                                              handlePdfDelete( file.source_id );
                                             }}
-                                            className="icon-btn" 
+                                            className="icon-btn"
                                             style={{ color: "var(--danger-color)", padding: "0.25rem" }}
                                             title="Delete PDF source"
                                           >
                                             <Trash2 size={14} />
                                           </button>
                                         </div>
-                                      ))}
+                                      ) )}
                                     </div>
                                   )}
                                 </div>
@@ -1160,7 +1268,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                     <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "2rem" }}>No text chunks returned for this document.</p>
                                   ) : (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxHeight: "400px", overflowY: "auto", paddingRight: "0.25rem" }}>
-                                      {pdfChunks.map((chunk, index) => (
+                                      {pdfChunks.map( ( chunk, index ) => (
                                         <div key={chunk.id} style={{ padding: "1rem", background: "var(--card-bg-light)", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
                                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                                             <span style={{ fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>ID: {chunk.id}</span>
@@ -1170,7 +1278,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                                           </div>
                                           <p style={{ margin: 0, fontSize: "0.85rem", lineHeight: "1.6", color: "var(--text-main)", whiteSpace: "pre-wrap" }}>{chunk.text}</p>
                                         </div>
-                                      ))}
+                                      ) )}
                                     </div>
                                   )}
                                 </div>
@@ -1187,17 +1295,17 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                             <h4>SDK & HTTP Integration Boilerplate</h4>
                             <p className="section-desc">Instantly query or populate this collection securely from your applications using your API Key.</p>
                           </div>
-                          
+
                           <div className="snippet-selector">
-                            <button 
-                              className={`snippet-tab-btn ${codeLang === "python" ? "active" : ""}`}
-                              onClick={() => setCodeLang("python")}
+                            <button
+                              className={`snippet-tab-btn ${ codeLang === "python" ? "active" : "" }`}
+                              onClick={() => setCodeLang( "python" )}
                             >
                               Python (requests)
                             </button>
-                            <button 
-                              className={`snippet-tab-btn ${codeLang === "js" ? "active" : ""}`}
-                              onClick={() => setCodeLang("js")}
+                            <button
+                              className={`snippet-tab-btn ${ codeLang === "js" ? "active" : "" }`}
+                              onClick={() => setCodeLang( "js" )}
                             >
                               JavaScript (fetch)
                             </button>
@@ -1207,9 +1315,9 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                             <pre>
                               <code>{generateSnippet()}</code>
                             </pre>
-                            <button 
-                              onClick={() => copyToClipboard(generateSnippet(), "Code snippet copied!")} 
-                              className="btn btn-sm btn-outline" 
+                            <button
+                              onClick={() => copyToClipboard( generateSnippet(), "Code snippet copied!" )}
+                              className="btn btn-sm btn-outline"
                               id="copy-snippet-btn"
                             >
                               <Copy size={12} />
@@ -1241,7 +1349,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
           <div className="modal-card">
             <div className="modal-header">
               <h3>{authModal.mode === "login" ? "Sign In to Console" : "Create Trial Account"}</h3>
-              <button className="icon-btn" onClick={() => setAuthModal({ open: false, mode: "login" })}>
+              <button className="icon-btn" onClick={() => setAuthModal( { open: false, mode: "login" } )}>
                 <X size={18} />
               </button>
             </div>
@@ -1249,40 +1357,41 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
               <form onSubmit={handleAuthSubmit}>
                 <div className="form-group">
                   <label>Username</label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     value={authUsername}
-                    onChange={(e) => setAuthUsername(e.target.value)}
-                    placeholder="e.g. dev_orchard" 
+                    onChange={( e ) => setAuthUsername( e.target.value )}
+                    placeholder="e.g. dev_orchard"
                   />
                 </div>
                 <div className="form-group">
                   <label>Password</label>
-                  <input 
-                    type="password" 
-                    required 
+                  <input
+                    type="password"
+                    required
                     value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    placeholder="••••••••" 
+                    onChange={( e ) => setAuthPassword( e.target.value )}
+                    placeholder="••••••••"
                   />
                 </div>
                 <div className="form-footer">
                   <button type="submit" className="btn btn-primary">
                     {authModal.mode === "login" ? "Login" : "Register & Get Key"}
                   </button>
-                  <button type="button" className="btn btn-outline" onClick={() => setAuthModal({ open: false, mode: "login" })}>
+                  <button type="button" className="btn btn-outline" onClick={() => setAuthModal( { open: false, mode: "login" } )}>
                     Cancel
                   </button>
                 </div>
               </form>
               <div className="auth-toggle-prompt">
                 <span>{authModal.mode === "login" ? "Don't have an account?" : "Already have an account?"}</span>{" "}
-                <a 
-                  href="#" 
-                  onClick={(e) => {
+                <a
+                  href="#"
+                  onClick={( e ) =>
+                  {
                     e.preventDefault();
-                    setAuthModal(prev => ({ ...prev, mode: prev.mode === "login" ? "register" : "login" }));
+                    setAuthModal( prev => ( { ...prev, mode: prev.mode === "login" ? "register" : "login" } ) );
                   }}
                 >
                   {authModal.mode === "login" ? "Create one now" : "Login here"}
@@ -1299,7 +1408,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
           <div className="modal-card">
             <div className="modal-header">
               <h3>Initialize Vector Collection</h3>
-              <button className="icon-btn" onClick={() => setCreateColModal(false)}>
+              <button className="icon-btn" onClick={() => setCreateColModal( false )}>
                 <X size={18} />
               </button>
             </div>
@@ -1307,19 +1416,19 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
               <form onSubmit={handleCreateCollection}>
                 <div className="form-group">
                   <label>Collection Name</label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     value={colName}
-                    onChange={(e) => setColName(e.target.value)}
-                    placeholder="e.g. customer-kb" 
+                    onChange={( e ) => setColName( e.target.value )}
+                    placeholder="e.g. customer-kb"
                   />
                 </div>
                 <div className="form-group">
                   <label>Distance Similarity Metric</label>
-                  <select 
+                  <select
                     value={colMetric}
-                    onChange={(e) => setColMetric(e.target.value)}
+                    onChange={( e ) => setColMetric( e.target.value )}
                   >
                     <option value="cosine">Cosine Distance (Recommended)</option>
                     <option value="l2">L2 / Euclidean Distance</option>
@@ -1328,7 +1437,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                 </div>
                 <div className="form-footer">
                   <button type="submit" className="btn btn-primary">Initialize Collection</button>
-                  <button type="button" className="btn btn-outline" onClick={() => setCreateColModal(false)}>
+                  <button type="button" className="btn btn-outline" onClick={() => setCreateColModal( false )}>
                     Cancel
                   </button>
                 </div>
@@ -1340,12 +1449,12 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
 
       {/* TOAST SYSTEM */}
       <div className="toast-container">
-        {toasts.map(toast => (
-          <div key={toast.id} className={`toast ${toast.type}`}>
+        {toasts.map( toast => (
+          <div key={toast.id} className={`toast ${ toast.type }`}>
             {toast.type === "success" ? <CheckCircle2 /> : <AlertTriangle />}
             <span>{toast.message}</span>
           </div>
-        ))}
+        ) )}
       </div>
 
     </div>
