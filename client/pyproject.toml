@@ -3,16 +3,16 @@ requires = ["setuptools>=61.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lunar-client"
+name = "orchard-client"
 version = "1.0.0"
-description = "A lightweight, professional SDK Client for LunarDB Vector Database as a Service trials."
+description = "A lightweight, professional SDK Client for OrchardDB Vector Database as a Service trials."
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "requests>=2.28.0"
 ]
 authors = [
-    { name = "LunarDB Developer Team", email = "developer@lunardb.dev" }
+    { name = "OrchardDB Developer Team", email = "developer@orcharddb.dev" }
 ]
 
 [tool.setuptools.packages.find]

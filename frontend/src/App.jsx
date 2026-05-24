@@ -10,9 +10,9 @@ const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 export default function App() {
   // --- State Configuration ---
-  const [theme, setTheme] = useState(localStorage.getItem("lunar_theme") || "dark");
-  const [username, setUsername] = useState(localStorage.getItem("lunar_username") || null);
-  const [apiKey, setApiKey] = useState(localStorage.getItem("lunar_api_key") || null);
+  const [theme, setTheme] = useState(localStorage.getItem("orchard_theme") || "dark");
+  const [username, setUsername] = useState(localStorage.getItem("orchard_username") || null);
+  const [apiKey, setApiKey] = useState(localStorage.getItem("orchard_api_key") || null);
   const [showKey, setShowKey] = useState(false);
   
   const [collections, setCollections] = useState([]);
@@ -58,7 +58,7 @@ export default function App() {
   // --- Effects ---
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("lunar_theme", theme);
+    localStorage.setItem("orchard_theme", theme);
   }, [theme]);
 
   useEffect(() => {
@@ -252,8 +252,8 @@ export default function App() {
       if (res.ok) {
         setUsername(authUsername.trim());
         setApiKey(data.api_key);
-        localStorage.setItem("lunar_username", authUsername.trim());
-        localStorage.setItem("lunar_api_key", data.api_key);
+        localStorage.setItem("orchard_username", authUsername.trim());
+        localStorage.setItem("orchard_api_key", data.api_key);
         setAuthModal({ open: false, mode: "login" });
         setAuthUsername("");
         setAuthPassword("");
@@ -269,8 +269,8 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("lunar_username");
-    localStorage.removeItem("lunar_api_key");
+    localStorage.removeItem("orchard_username");
+    localStorage.removeItem("orchard_api_key");
     setUsername(null);
     setApiKey(null);
     setCollections([]);
@@ -474,7 +474,7 @@ export default function App() {
 
   // --- Dynamic Code Snippets Block ---
   const generateSnippet = () => {
-    const key = apiKey || "your_lunar_api_key";
+    const key = apiKey || "your_orchard_api_key";
     const col = activeCollection || "collection_name";
     if (codeLang === "python") {
       return `import requests
@@ -489,14 +489,14 @@ HEADERS = {
 # 1. Index context data
 payload_upsert = {
     "ids": ["item_1"],
-    "documents": ["LunarDB wraps ChromaDB securely, providing robust trials."],
+    "documents": ["OrchardDB wraps ChromaDB securely, providing robust trials."],
     "metadatas": [{"category": "demo"}]
 }
 requests.post(f"{BASE_URL}/collections/${col}/upsert_documents", headers=HEADERS, json=payload_upsert)
 
 # 2. Perform similarity search query
 payload_query = {
-    "query_text": "What is LunarDB?",
+    "query_text": "What is OrchardDB?",
     "n_results": 2
 }
 response = requests.post(f"{BASE_URL}/collections/${col}/query", headers=HEADERS, json=payload_query)
@@ -515,7 +515,7 @@ fetch(\`\${baseUrl}/collections/${col}/upsert_documents\`, {
   headers: headers,
   body: JSON.stringify({
     ids: ["item_1"],
-    documents: ["LunarDB is modern and developer-first."],
+    documents: ["OrchardDB is modern and developer-first."],
     metadatas: [{ category: "demo" }]
   })
 })
@@ -527,7 +527,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
   method: "POST",
   headers: headers,
   body: JSON.stringify({
-    query_text: "What is LunarDB?",
+    query_text: "What is OrchardDB?",
     n_results: 2
   })
 })
@@ -548,7 +548,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
         <div className="header-container">
           <div className="logo" onClick={() => setActiveCollection(null)}>
             <Database className="glow-icon" />
-            <span className="logo-text">Lunar<span className="logo-accent">DB</span></span>
+            <span className="logo-text">Orchard<span className="logo-accent">DB</span></span>
             <span className="badge">Trial v1.0</span>
           </div>
 
@@ -602,7 +602,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                 <span className="gradient-text">Simplified for Speed.</span>
               </h1>
               <p className="hero-subtitle">
-                LunarDB wraps ChromaDB with seamless multi-tenancy, instant API key authorization, and a stunning developer console. Start trial indexing in seconds.
+                OrchardDB wraps ChromaDB with seamless multi-tenancy, instant API key authorization, and a stunning developer console. Start trial indexing in seconds.
               </p>
               
               <div className="hero-actions">
@@ -621,7 +621,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                   <span className="dot red"></span>
                   <span className="dot yellow"></span>
                   <span className="dot green"></span>
-                  <span className="browser-title">console.lunardb.dev</span>
+                  <span className="browser-title">console.orcharddb.dev</span>
                 </div>
                 <div className="preview-content">
                   <div className="preview-sidebar"></div>
@@ -1199,7 +1199,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
       </main>
 
       <footer className="main-footer">
-        <p>&copy; 2026 LunarDB. Built for lightweight vector database trials. Powered by ChromaDB.</p>
+        <p>&copy; 2026 OrchardDB. Built for lightweight vector database trials. Powered by ChromaDB.</p>
       </footer>
 
       {/* MODAL 1: AUTHENTICATION (Register / Login) */}
@@ -1221,7 +1221,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                     required 
                     value={authUsername}
                     onChange={(e) => setAuthUsername(e.target.value)}
-                    placeholder="e.g. dev_lunar" 
+                    placeholder="e.g. dev_orchard" 
                   />
                 </div>
                 <div className="form-group">

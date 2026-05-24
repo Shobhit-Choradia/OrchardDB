@@ -1,6 +1,6 @@
-# LunarDB Python SDK Client
+# OrchardDB Python SDK Client
 
-A lightweight, professional, and dead-simple Python client for interacting with **LunarDB** Vector Database trial spaces.
+A lightweight, professional, and dead-simple Python client for interacting with **OrchardDB** Vector Database trial spaces.
 
 ---
 
@@ -17,10 +17,10 @@ pip install -e ./client
 ## 🚀 Quick Start Example
 
 ```python
-from lunardb import LunarClient
+from orcharddb import OrchardClient
 
-# 1. Connect to LunarDB with your secret API Key
-db = LunarClient(api_key="lunar_YOUR_API_KEY_HERE")
+# 1. Connect to OrchardDB with your secret API Key
+db = OrchardClient(api_key="orchard_YOUR_API_KEY_HERE")
 
 # 2. Set up a collection space
 db.create_collection("my-space", metric="cosine")

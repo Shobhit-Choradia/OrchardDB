@@ -24,7 +24,7 @@ class PDFDeleteResponse(BaseModel):
 
 # --- Security Dependency ---
 
-def get_premium_tenant_id(x_api_key: str = Header(..., description="Developer API Key (e.g. lunar_xxxx.xxxx)")) -> int:
+def get_premium_tenant_id(x_api_key: str = Header(..., description="Developer API Key (e.g. orchard_xxxx.xxxx)")) -> int:
     """
     Dependency that authorizes requests and verifies if the tenant has a premium subscription.
     """

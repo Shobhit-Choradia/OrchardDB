@@ -56,7 +56,7 @@ def verify_paid_tenant(tenant_id: int) -> bool:
 def generate_tenant_api_key(tenant_id: int, key_name: str = "Default Key") -> str:
     """Generates a secure API key, stores its hash, and returns the raw key."""
     raw_secret = secrets.token_hex(24)
-    prefix = f"lunar_{raw_secret[:6]}"
+    prefix = f"orchard_{raw_secret[:6]}"
     raw_key = f"{prefix}.{raw_secret[6:]}"
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
     

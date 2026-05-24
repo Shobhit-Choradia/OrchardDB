@@ -6,7 +6,7 @@ from app.chroma_manager import ChromaManager
 db_manager = ChromaManager()
 
 
-def get_tenant_id(x_api_key: str = Header(..., description="Developer API Key (e.g. lunar_xxxx.xxxx)")) -> int:
+def get_tenant_id(x_api_key: str = Header(..., description="Developer API Key (e.g. orchard_xxxx.xxxx)")) -> int:
     """
     Security dependency to authorize incoming REST requests.
     Validates the provided API key header and extracts the associated tenant_id.

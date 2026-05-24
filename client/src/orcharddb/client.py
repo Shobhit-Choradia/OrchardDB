@@ -1,13 +1,13 @@
 import requests
 
-class LunarClient:
+class OrchardClient:
     """
-    LunarDB Client SDK
+    OrchardDB Client SDK
     Provides simple, professional wrappers around vector database trial endpoints.
     """
     
     def __init__(self, api_key: str, base_url: str = "http://127.0.0.1:8000/api"):
-        """Initializes the LunarDB Client connection."""
+        """Initializes the OrchardDB Client connection."""
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.headers = {
@@ -26,7 +26,7 @@ class LunarClient:
         except Exception:
             detail = response.text
             
-        raise ValueError(f"LunarDB API Error ({response.status_code}): {detail}")
+        raise ValueError(f"OrchardDB API Error ({response.status_code}): {detail}")
 
     # ==========================================================================
     # Collection Management Operations (CRUD Collections)

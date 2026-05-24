@@ -1,5 +1,5 @@
 # ==============================================================================
-# LunarDB Master GitIgnore Rules
+# OrchardDB Master GitIgnore Rules
 # Covers Python backend, React frontend, client SDK packaging, and local databases.
 # ==============================================================================
 
@@ -14,8 +14,8 @@ dist/
 *.egg-info/
 client/dist/
 client/build/
-client/src/lunar_client.egg-info/
-**/lunar_client.egg-info/
+client/src/orchard_client.egg-info/
+**/orchard_client.egg-info/
 
 # --- Python Compiled Cache ---
 **/__pycache__/
