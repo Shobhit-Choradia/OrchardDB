@@ -2,7 +2,7 @@ import io
 from fastapi import APIRouter, Header, HTTPException, Depends, status, UploadFile, File
 from pydantic import BaseModel
 from app.services.auth_service import verify_api_key, verify_paid_tenant
-from app.dependencies import db_manager
+from app.dependencies import db_manager, get_tenant_id
 from app.services import pdf_service
 from app.database import get_db_connection
 
@@ -24,17 +24,10 @@ class PDFDeleteResponse(BaseModel):
 
 # --- Security Dependency ---
 
-def get_premium_tenant_id(x_api_key: str = Header(..., description="Developer API Key (e.g. orchard_xxxx.xxxx)")) -> int:
+def get_premium_tenant_id(tenant_id: int = Depends(get_tenant_id)) -> int:
     """
     Dependency that authorizes requests and verifies if the tenant has a premium subscription.
     """
-    tenant_id = verify_api_key(x_api_key)
-    if not tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid, expired, or deactivated API Key. Access denied."
-        )
-    
     # Check if the tenant is active on the premium tier
     if not verify_paid_tenant(tenant_id):
         raise HTTPException(

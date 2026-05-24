@@ -2,6 +2,7 @@ from fastapi import APIRouter, Header, HTTPException, Depends, status
 from pydantic import BaseModel
 from app.services import auth_service
 from app.dependencies import get_tenant_id
+from app.security.utils import create_jwt_token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -18,9 +19,11 @@ def register(creds: TenantCredentials):
         tenant_id = auth_service.register_tenant(creds.username, creds.password)
         # Immediately generate an API key for the newly registered tenant
         api_key = auth_service.generate_tenant_api_key(tenant_id, "Default Key")
+        token = create_jwt_token(data = {"tenant_id" : tenant_id, "username" : creds.username})
         return {
             "message": "Tenant registered successfully",
-            "api_key": api_key
+            "api_key": api_key,
+            "token" : token
         }
     except Exception as e:
         # Username already exists unique constraint violation, etc.
@@ -35,16 +38,19 @@ def login(creds: TenantCredentials):
     Endpoint to Login a tenant and generates a fresh API key for them.
     """
     tenant_id = auth_service.verify_tenant(creds.username, creds.password)
+    
     if not tenant_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
         )
-    # Generate a fresh API key for the tenant upon successful login
-    api_key = auth_service.generate_tenant_api_key(tenant_id, "Login Key")
+    
+    # Generate a fresh token for the tenant upon successful login
+    token = create_jwt_token(data = {"tenant_id" : tenant_id, "username" : creds.username})
+    
     return {
         "message": "Login successful",
-        "api_key": api_key
+        "token" : token
     }
 
 @router.get("/status")

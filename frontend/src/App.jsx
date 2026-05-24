@@ -13,6 +13,7 @@ export default function App() {
   const [theme, setTheme] = useState(localStorage.getItem("orchard_theme") || "dark");
   const [username, setUsername] = useState(localStorage.getItem("orchard_username") || null);
   const [apiKey, setApiKey] = useState(localStorage.getItem("orchard_api_key") || null);
+  const [token, setToken] = useState(localStorage.getItem("orchard_token") || null);
   const [showKey, setShowKey] = useState(false);
   
   const [collections, setCollections] = useState([]);
@@ -62,11 +63,11 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    if (apiKey) {
+    if (token) {
       fetchCollections();
       fetchPremiumStatus();
     }
-  }, [apiKey]);
+  }, [token]);
 
   useEffect(() => {
     if (activeCollection && activeTab === "documents") {
@@ -79,7 +80,15 @@ export default function App() {
   // --- Toast Handler ---
   const triggerToast = (message, type = "success") => {
     const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
+    let displayMessage = message;
+    if (message && typeof message === "object") {
+      try {
+        displayMessage = message.detail || JSON.stringify(message);
+      } catch {
+        displayMessage = String(message);
+      }
+    }
+    setToasts(prev => [...prev, { id, message: displayMessage, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3500);
@@ -89,7 +98,7 @@ export default function App() {
   const fetchPremiumStatus = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/status`, {
-        headers: { "x-api-key": apiKey }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       if (res.ok) {
@@ -104,7 +113,7 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/upgrade`, {
         method: "POST",
-        headers: { "x-api-key": apiKey }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       if (res.ok) {
@@ -122,7 +131,7 @@ export default function App() {
     setIsLoadingPdfs(true);
     try {
       const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents`, {
-        headers: { "x-api-key": apiKey }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       setIsLoadingPdfs(false);
@@ -151,7 +160,7 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/upload`, {
         method: "POST",
-        headers: { "x-api-key": apiKey },
+        headers: { "Authorization": `Bearer ${token}` },
         body: formData
       });
       const data = await res.json();
@@ -178,7 +187,7 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents/${sourceId}`, {
         method: "DELETE",
-        headers: { "x-api-key": apiKey }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       if (res.ok) {
@@ -201,7 +210,7 @@ export default function App() {
     setIsLoadingChunks(true);
     try {
       const res = await fetch(`${API_BASE_URL}/pdf/collections/${activeCollection}/documents/${pdfObj.source_id}`, {
-        headers: { "x-api-key": apiKey }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       setIsLoadingChunks(false);
@@ -220,7 +229,7 @@ export default function App() {
   const fetchCollections = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/vdb/collections`, {
-        headers: { "x-api-key": apiKey }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       if (res.ok) {
@@ -251,9 +260,18 @@ export default function App() {
       
       if (res.ok) {
         setUsername(authUsername.trim());
-        setApiKey(data.api_key);
+        setToken(data.token);
         localStorage.setItem("orchard_username", authUsername.trim());
-        localStorage.setItem("orchard_api_key", data.api_key);
+        localStorage.setItem("orchard_token", data.token);
+        
+        if (data.api_key) {
+          setApiKey(data.api_key);
+          localStorage.setItem("orchard_api_key", data.api_key);
+        } else {
+          setApiKey(null);
+          localStorage.removeItem("orchard_api_key");
+        }
+        
         setAuthModal({ open: false, mode: "login" });
         setAuthUsername("");
         setAuthPassword("");
@@ -270,8 +288,10 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("orchard_username");
+    localStorage.removeItem("orchard_token");
     localStorage.removeItem("orchard_api_key");
     setUsername(null);
+    setToken(null);
     setApiKey(null);
     setCollections([]);
     setActiveCollection(null);
@@ -292,7 +312,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ name: formattedName, metric: colMetric })
       });
@@ -321,7 +341,7 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}`, {
         method: "DELETE",
-        headers: { "x-api-key": apiKey }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       
       if (res.ok) {
@@ -349,7 +369,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           query_text: queryText.trim(),
@@ -374,7 +394,7 @@ export default function App() {
     setIsLoadingDocs(true);
     try {
       const res = await fetch(`${API_BASE_URL}/vdb/collections/${activeCollection}/documents`, {
-        headers: { "x-api-key": apiKey }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       setIsLoadingDocs(false);
@@ -420,7 +440,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           ids: [docId.trim()],
@@ -455,7 +475,7 @@ export default function App() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ ids: [idToDelete] })
       });
@@ -552,7 +572,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
             <span className="badge">Trial v1.0</span>
           </div>
 
-          {apiKey ? (
+          {token ? (
             <nav className="nav-links">
               <button className="nav-link-btn" onClick={() => { setActiveCollection(null); setActiveTab("query"); }}>
                 Workspace Console
@@ -577,7 +597,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             
-            {apiKey && username && (
+            {token && username && (
               <div id="user-status-container">
                 <span id="header-username">{username}</span>
                 <button onClick={handleLogout} className="btn btn-outline btn-sm" title="Sign Out">
@@ -594,7 +614,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
       <main className="content-container">
         
         {/* LANDING MARKETING HERO (Visible when logged out) */}
-        {!apiKey && (
+        {!token && (
           <section className="landing-section">
             <div className="hero-content">
               <h1 className="hero-title">
@@ -636,7 +656,7 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
         )}
 
         {/* DEVELOPER DASHBOARD CONSOLE (Visible when logged in) */}
-        {apiKey && (
+        {token && (
           <section className="console-section">
             <div className="console-grid">
               
@@ -662,10 +682,23 @@ fetch(\`\${baseUrl}/collections/${col}/query\`, {
                   <div className="api-key-wrapper">
                     <input 
                       type={showKey ? "text" : "password"} 
-                      value={apiKey} 
+                      value={apiKey || "•••••••••••••••••••••••• (Hashed for Security)"} 
                       readOnly 
+                      style={{ fontStyle: apiKey ? "normal" : "italic" }}
                     />
-                    <button className="icon-btn" onClick={() => copyToClipboard(apiKey, "API Key copied!")} title="Copy Key">
+                    <button 
+                      className="icon-btn" 
+                      onClick={() => {
+                        if (apiKey) {
+                          copyToClipboard(apiKey, "API Key copied!");
+                        } else {
+                          triggerToast("API Key is securely hashed. Use the one generated during signup.", "warning");
+                        }
+                      }} 
+                      title="Copy Key"
+                      disabled={!apiKey}
+                      style={{ opacity: apiKey ? 1 : 0.5 }}
+                    >
                       <Copy size={16} />
                     </button>
                     <button className="icon-btn" onClick={() => setShowKey(prev => !prev)} title={showKey ? "Hide key" : "Show key"}>
