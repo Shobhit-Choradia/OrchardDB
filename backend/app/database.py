@@ -28,6 +28,8 @@ def init_db():
                 key_hash TEXT UNIQUE NOT NULL,
                 key_prefix TEXT NOT NULL,
                 name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                deleted_at TIMESTAMP DEFAULT NULL,
                 is_active INTEGER NOT NULL DEFAULT 1,
                 FOREIGN KEY (tenant_id) REFERENCES tenants(id)
             )

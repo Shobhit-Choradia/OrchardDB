@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.database import init_db
-from app.routes import auth_routes, vdb_routes, pdf_routes
+from app.routes import auth_routes, vdb_routes, pdf_routes, api_routes
 
 app = FastAPI(
     title="OrchardDB",
@@ -29,6 +29,7 @@ def startup_event():
 app.include_router(auth_routes.router, prefix="/api")
 app.include_router(vdb_routes.router, prefix="/api")
 app.include_router(pdf_routes.router, prefix="/api")
+app.include_router(api_routes.router, prefix="/api")
 
 # Resolve absolute path to the frontend directories dynamically
 current_dir = os.path.dirname(os.path.realpath(__file__))

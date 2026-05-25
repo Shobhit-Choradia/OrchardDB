@@ -13,16 +13,14 @@ class TenantCredentials(BaseModel):
 @router.post("/register")
 def register(creds: TenantCredentials):
     """
-    Endpoint to Register a new developer tenant and generates an API key for them.
+    Endpoint to Register a new developer tenant.
     """
     try:
         tenant_id = auth_service.register_tenant(creds.username, creds.password)
-        # Immediately generate an API key for the newly registered tenant
-        api_key = auth_service.generate_tenant_api_key(tenant_id, "Default Key")
+
         token = create_jwt_token(data = {"tenant_id" : tenant_id, "username" : creds.username})
         return {
             "message": "Tenant registered successfully",
-            "api_key": api_key,
             "token" : token
         }
     except Exception as e:

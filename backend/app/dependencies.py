@@ -1,7 +1,7 @@
 import hashlib
 from typing import Optional
 from fastapi import Header, HTTPException, status, Depends
-from app.services.auth_service import verify_api_key
+from app.services.api_key_service import verify_api_key
 from app.chroma_manager import ChromaManager
 from app.security.utils import verify_jwt_token, get_current_user
 

@@ -374,7 +374,7 @@ export default function App ()
           "Content-Type": "application/json",
           "Authorization": `Bearer ${ token }`
         },
-        body: JSON.stringify( { 
+        body: JSON.stringify( {
           name: formattedName,
           metric: colMetric
         } )

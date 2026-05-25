@@ -1,7 +1,7 @@
 import io
 from fastapi import APIRouter, Header, HTTPException, Depends, status, UploadFile, File
 from pydantic import BaseModel
-from app.services.auth_service import verify_api_key, verify_paid_tenant
+from app.services.auth_service import verify_paid_tenant
 from app.dependencies import db_manager, get_tenant_id
 from app.services import pdf_service
 from app.database import get_db_connection
