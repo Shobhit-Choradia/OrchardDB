@@ -4,7 +4,7 @@ import
   Moon, Sun, FolderOpen, Plus, Lock, Trash2,
   CloudUpload, Copy, RotateCw, Eye, EyeOff, X,
   LogOut, CheckCircle2, AlertTriangle, Search, Database, ChevronRight,
-  Sparkles, FileText
+  Sparkles, FileText, Key
 } from "lucide-react";
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
@@ -14,9 +14,14 @@ export default function App ()
   // --- State Configuration ---
   const [ theme, setTheme ] = useState( localStorage.getItem( "orchard_theme" ) || "dark" );
   const [ username, setUsername ] = useState( localStorage.getItem( "orchard_username" ) || null );
-  const [ apiKey, setApiKey ] = useState( localStorage.getItem( "orchard_api_key" ) || null );
   const [ token, setToken ] = useState( localStorage.getItem( "orchard_token" ) || null );
-  const [ showKey, setShowKey ] = useState( false );
+
+  const [ showApiKeysPage, setShowApiKeysPage ] = useState( false );
+  const [ apiKeys, setApiKeys ] = useState( [] );
+  const [ newKeyName, setNewKeyName ] = useState( "" );
+  const [ generatedKey, setGeneratedKey ] = useState( null );
+  const [ isGeneratingKey, setIsGeneratingKey ] = useState( false );
+  const [ isLoadingKeys, setIsLoadingKeys ] = useState( false );
 
   const [ collections, setCollections ] = useState( [] );
   const [ activeCollection, setActiveCollection ] = useState( null );
@@ -71,8 +76,82 @@ export default function App ()
     {
       fetchCollections();
       fetchPremiumStatus();
+      fetchApiKeys();
     }
   }, [ token ] );
+
+  const fetchApiKeys = async () => {
+    if (!token) return;
+    setIsLoadingKeys(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api_keys/`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setIsLoadingKeys(false);
+      if (res.ok) {
+        setApiKeys(data.keys || []);
+      } else {
+        triggerToast(data.detail || "Error loading API keys.", "error");
+      }
+    } catch {
+      setIsLoadingKeys(false);
+      triggerToast("Network error fetching API keys.", "error");
+    }
+  };
+
+  const handleGenerateApiKey = async (e) => {
+    e.preventDefault();
+    if (!newKeyName.trim()) {
+      triggerToast("Please enter a name for the API key.", "error");
+      return;
+    }
+    setIsGeneratingKey(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api_keys/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newKeyName.trim() })
+      });
+      const data = await res.json();
+      setIsGeneratingKey(false);
+      if (res.ok) {
+        setGeneratedKey(data.api_key);
+        setNewKeyName("");
+        triggerToast("New API Key generated successfully!", "success");
+        fetchApiKeys();
+      } else {
+        triggerToast(data.detail || "Error generating API key.", "error");
+      }
+    } catch {
+      setIsGeneratingKey(false);
+      triggerToast("Network error generating API key.", "error");
+    }
+  };
+
+  const handleDeleteApiKey = async (keyId) => {
+    const confirmDelete = window.confirm("Are you sure you want to revoke this API key? This action is immediate and cannot be undone.");
+    if (!confirmDelete) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api_keys/delete/${keyId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        triggerToast(data.message || "API key revoked.", "success");
+        fetchApiKeys();
+      } else {
+        triggerToast(data.detail || "Error revoking API key.", "error");
+      }
+    } catch {
+      triggerToast("Network error revoking API key.", "error");
+    }
+  };
 
   useEffect( () =>
   {
@@ -88,7 +167,7 @@ export default function App ()
   // --- Toast Handler ---
   const triggerToast = ( message, type = "success" ) =>
   {
-    const id = Date.now();
+    const id = Date.now().toString() + Math.random().toString();
     let displayMessage = message;
     if ( message && typeof message === "object" )
     {
@@ -312,20 +391,11 @@ export default function App ()
 
       if ( res.ok )
       {
+        setToasts( [] ); // Immediately clear any lingering error/expired toasts
         setUsername( authUsername.trim() );
         setToken( data.token );
         localStorage.setItem( "orchard_username", authUsername.trim() );
         localStorage.setItem( "orchard_token", data.token );
-
-        if ( data.api_key )
-        {
-          setApiKey( data.api_key );
-          localStorage.setItem( "orchard_api_key", data.api_key );
-        } else
-        {
-          setApiKey( null );
-          localStorage.removeItem( "orchard_api_key" );
-        }
 
         setAuthModal( { open: false, mode: "login" } );
         setAuthUsername( "" );
@@ -347,10 +417,9 @@ export default function App ()
   {
     localStorage.removeItem( "orchard_username" );
     localStorage.removeItem( "orchard_token" );
-    localStorage.removeItem( "orchard_api_key" );
     setUsername( null );
     setToken( null );
-    setApiKey( null );
+    setShowApiKeysPage( false );
     setCollections( [] );
     setActiveCollection( null );
     setQueryResults( [] );
@@ -591,7 +660,7 @@ export default function App ()
   // --- Dynamic Code Snippets Block ---
   const generateSnippet = () =>
   {
-    const key = apiKey || "your_orchard_api_key";
+    const key = apiKeys.length > 0 ? `${ apiKeys[ 0 ].key_prefix }.••••••••••••••••` : "your_orchard_api_key";
     const col = activeCollection || "collection_name";
     if ( codeLang === "python" )
     {
@@ -673,9 +742,30 @@ fetch(\`\${baseUrl}/collections/${ col }/query\`, {
           </div>
 
           {token ? (
-            <nav className="nav-links">
-              <button className="nav-link-btn" onClick={() => { setActiveCollection( null ); setActiveTab( "query" ); }}>
+            <nav className="nav-links" style={{ display: "flex", gap: "1.5rem" }}>
+              <button
+                className={`nav-link-btn ${!showApiKeysPage ? "active" : ""}`}
+                style={{
+                  fontWeight: !showApiKeysPage ? "700" : "500",
+                  color: !showApiKeysPage ? "var(--accent-color)" : "var(--text-secondary)",
+                  borderBottom: !showApiKeysPage ? "2px solid var(--accent-color)" : "2px solid transparent",
+                  paddingBottom: "0.25rem"
+                }}
+                onClick={() => { setShowApiKeysPage( false ); setActiveCollection( null ); setActiveTab( "query" ); }}
+              >
                 Workspace Console
+              </button>
+              <button
+                className={`nav-link-btn ${showApiKeysPage ? "active" : ""}`}
+                style={{
+                  fontWeight: showApiKeysPage ? "700" : "500",
+                  color: showApiKeysPage ? "var(--accent-color)" : "var(--text-secondary)",
+                  borderBottom: showApiKeysPage ? "2px solid var(--accent-color)" : "2px solid transparent",
+                  paddingBottom: "0.25rem"
+                }}
+                onClick={() => setShowApiKeysPage( true )}
+              >
+                Developer API Keys
               </button>
             </nav>
           ) : (
@@ -756,12 +846,264 @@ fetch(\`\${baseUrl}/collections/${ col }/query\`, {
         )}
 
         {/* DEVELOPER DASHBOARD CONSOLE (Visible when logged in) */}
-        {token && (
+        {token && showApiKeysPage && (
+          <section className="console-section" style={{ animation: "fadeIn 0.4s ease-out" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+              
+              {/* Header Title */}
+              <div style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "1.5rem" }}>
+                <h2 style={{ fontSize: "2rem", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <Key size={28} style={{ color: "var(--accent-color)" }} />
+                  <span>Developer API Credentials</span>
+                </h2>
+                <p style={{ color: "var(--text-secondary)", fontSize: "1.05rem", maxWidth: "800px" }}>
+                  Authenticate machine-to-machine integrations securely. OrchardDB uses secure SHA-256 hashing to verify keys, meaning your raw tokens are never saved or visible after creation.
+                </p>
+              </div>
+
+              {/* Secure Token Generated Alert Modal/Banner */}
+              {generatedKey && (
+                <div style={{
+                  background: "linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.15))",
+                  border: "2px solid var(--accent-color)",
+                  borderRadius: "12px",
+                  padding: "1.5rem 2rem",
+                  boxShadow: "0 10px 30px rgba(245, 158, 11, 0.15)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1rem",
+                  position: "relative",
+                  animation: "fadeIn 0.3s ease"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <Sparkles size={20} style={{ color: "var(--accent-color)" }} />
+                      <h3 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)" }}>New API Key Successfully Generated!</h3>
+                    </div>
+                    <button className="icon-btn" onClick={() => setGeneratedKey(null)} title="Dismiss">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <p style={{ margin: 0, fontSize: "0.95rem", color: "var(--text-secondary)" }}>
+                    <strong>WARNING:</strong> For security reasons, we can only display this raw token <strong>once</strong>. Copy it immediately and store it securely in a safe password manager or environment configuration file.
+                  </p>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    background: "var(--bg-main)",
+                    border: "1px solid var(--border-color)",
+                    padding: "0.75rem 1rem",
+                    borderRadius: "8px",
+                    gap: "1rem",
+                    marginTop: "0.5rem"
+                  }}>
+                    <input
+                      type="text"
+                      value={generatedKey}
+                      readOnly
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--text-primary)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "1.05rem",
+                        flex: 1,
+                        outline: "none"
+                      }}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => copyToClipboard(generatedKey, "API Key copied to clipboard!")}
+                      style={{ padding: "0.5rem 1.25rem" }}
+                    >
+                      <Copy size={14} />
+                      <span>Copy Token</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Two Column Grid: Details & Active Keys */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "2rem", alignItems: "start" }}>
+                
+                {/* Column 1: API Description & Guide */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                  
+                  {/* API usage guidelines */}
+                  <div className="console-card" style={{ minHeight: "auto", padding: "2rem" }}>
+                    <h3 style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "1.25rem" }}>
+                      <Lock size={18} style={{ color: "var(--accent-color)" }} />
+                      <span>Integration Protocol</span>
+                    </h3>
+                    <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", lineHeight: "1.6", marginBottom: "1.25rem" }}>
+                      All machine requests to OrchardDB endpoints must be authenticated by specifying your secure token in the HTTP headers.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                      <div style={{ background: "var(--bg-main)", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>HEADER KEY:</span>
+                        <code style={{ fontFamily: "var(--font-mono)", fontWeight: "600", fontSize: "0.9rem" }}>X-API-Key</code>
+                      </div>
+                      <div style={{ background: "var(--bg-main)", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>TOKEN FORMAT:</span>
+                        <code style={{ fontFamily: "var(--font-mono)", fontWeight: "600", fontSize: "0.9rem", color: "var(--accent-color)" }}>orchard_prefix.secret_token</code>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* cURL request demo */}
+                  <div className="console-card" style={{ minHeight: "auto", padding: "2rem" }}>
+                    <h3 style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "1.25rem" }}>
+                      <Search size={18} style={{ color: "var(--accent-color)" }} />
+                      <span>cURL Integration Sample</span>
+                    </h3>
+                    <div style={{ position: "relative" }}>
+                      <pre style={{
+                        background: "var(--bg-main)",
+                        padding: "1rem",
+                        borderRadius: "8px",
+                        fontSize: "0.8rem",
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--text-primary)",
+                        overflowX: "auto"
+                      }}>
+{`curl -X POST "http://127.0.0.1:8000/api/vdb/collections/demo/query" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: orchard_xxxxxx.xxxxxxxxxxxxxxxx" \\
+  -d '{"query_text": "vector db trial", "n_results": 3}'`}
+                      </pre>
+                      <button
+                        className="icon-btn"
+                        onClick={() => copyToClipboard(`curl -X POST "http://127.0.0.1:8000/api/vdb/collections/demo/query" \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Key: orchard_xxxxxx.xxxxxxxxxxxxxxxx" \\\n  -d '{"query_text": "vector db trial", "n_results": 3}'`, "cURL sample copied!")}
+                        style={{ position: "absolute", right: "0.5rem", top: "0.5rem" }}
+                        title="Copy Curl Sample"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Column 2: Active API Keys & Generator */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+                  {/* Generate Key Form */}
+                  <div className="console-card" style={{ minHeight: "auto", padding: "2rem" }}>
+                    <h3 style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "1.25rem" }}>
+                      <Plus size={18} style={{ color: "var(--accent-color)" }} />
+                      <span>Generate New API Key</span>
+                    </h3>
+                    <form onSubmit={handleGenerateApiKey} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: "0.85rem" }}>Key Label / Descriptive Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={newKeyName}
+                          onChange={(e) => setNewKeyName(e.target.value)}
+                          placeholder="e.g. Staging Server Client"
+                          style={{ marginTop: "0.5rem" }}
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={isGeneratingKey}
+                        style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}
+                      >
+                        {isGeneratingKey ? <RotateCw className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                        <span>{isGeneratingKey ? "Generating..." : "Generate API Key"}</span>
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Active Keys List */}
+                  <div className="console-card" style={{ minHeight: "auto", padding: "2rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+                      <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "1.25rem" }}>
+                        <Database size={18} style={{ color: "var(--accent-color)" }} />
+                        <span>Active Credentials</span>
+                      </h3>
+                      <button onClick={fetchApiKeys} className="icon-btn" title="Refresh API Keys" disabled={isLoadingKeys}>
+                        <RotateCw className={isLoadingKeys ? "animate-spin" : ""} size={14} />
+                      </button>
+                    </div>
+
+                    {isLoadingKeys ? (
+                      <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
+                        <RotateCw className="animate-spin" size={24} />
+                      </div>
+                    ) : apiKeys.length === 0 ? (
+                      <div style={{
+                        textAlign: "center",
+                        padding: "2rem 1rem",
+                        color: "var(--text-muted)",
+                        background: "rgba(0, 0, 0, 0.03)",
+                        border: "1px dashed var(--border-color)",
+                        borderRadius: "8px"
+                      }}>
+                        <Lock size={20} style={{ marginBottom: "0.5rem", color: "var(--text-muted)" }} />
+                        <p style={{ margin: 0, fontSize: "0.9rem" }}>No active credentials registered. Name and generate one above.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                        {apiKeys.map((key) => (
+                          <div key={key.id} style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "1rem",
+                            background: "var(--bg-main)",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: "8px"
+                          }}>
+                            <div>
+                              <p style={{ fontWeight: "600", fontSize: "0.9rem", margin: "0 0 0.25rem 0" }}>{key.name}</p>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                                <code style={{
+                                  fontFamily: "var(--font-mono)",
+                                  fontSize: "0.75rem",
+                                  background: "rgba(0,0,0,0.1)",
+                                  padding: "0.1rem 0.4rem",
+                                  borderRadius: "4px",
+                                  color: "var(--accent-color)"
+                                }}>
+                                  {key.key_prefix}.••••••••
+                                </code>
+                                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                                  Created: {new Date(key.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteApiKey(key.id)}
+                              className="icon-btn"
+                              style={{ color: "var(--danger-color)", padding: "0.5rem" }}
+                              title="Revoke API Key"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          </section>
+        )}
+
+        {/* DEVELOPER DASHBOARD CONSOLE (Visible when logged in) */}
+        {token && !showApiKeysPage && (
           <section className="console-section">
             <div className="console-grid">
 
               {/* Credentials Header Panel */}
-              <div className="full-width-card welcome-card">
+              <div className="full-width-card welcome-card" style={{ padding: "1.5rem 2rem", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div className="welcome-left">
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
                     <h2 style={{ margin: 0 }}>Welcome back, <span className="highlight-text">{username}</span>!</h2>
@@ -775,39 +1117,13 @@ fetch(\`\${baseUrl}/collections/${ col }/query\`, {
                       </button>
                     )}
                   </div>
-                  <p>Your isolated vector database namespace is secured and active.</p>
+                  <p>Your isolated vector database namespace is secured, active, and fully optimized.</p>
                 </div>
-                <div className="api-key-panel">
-                  <span className="panel-label">Active Secret SDK API Key:</span>
-                  <div className="api-key-wrapper">
-                    <input
-                      type={showKey ? "text" : "password"}
-                      value={apiKey || "•••••••••••••••••••••••• (Hashed for Security)"}
-                      readOnly
-                      style={{ fontStyle: apiKey ? "normal" : "italic" }}
-                    />
-                    <button
-                      className="icon-btn"
-                      onClick={() =>
-                      {
-                        if ( apiKey )
-                        {
-                          copyToClipboard( apiKey, "API Key copied!" );
-                        } else
-                        {
-                          triggerToast( "API Key is securely hashed. Use the one generated during signup.", "warning" );
-                        }
-                      }}
-                      title="Copy Key"
-                      disabled={!apiKey}
-                      style={{ opacity: apiKey ? 1 : 0.5 }}
-                    >
-                      <Copy size={16} />
-                    </button>
-                    <button className="icon-btn" onClick={() => setShowKey( prev => !prev )} title={showKey ? "Hide key" : "Show key"}>
-                      {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
+                <div style={{ display: "flex", gap: "1rem" }}>
+                  <button className="btn btn-primary" onClick={() => setShowApiKeysPage( true )} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <Key size={16} />
+                    <span>Manage API Keys</span>
+                  </button>
                 </div>
               </div>
 
