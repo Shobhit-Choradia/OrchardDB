@@ -341,6 +341,11 @@ h1, h2, h3, h4, h5, h6 {
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .console-grid {
     display: grid;
     grid-template-columns: 320px 1fr;
@@ -416,8 +421,8 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: var(--card-shadow);
     display: flex;
     flex-direction: column;
-    min-height: 500px;
-    overflow: hidden;
+    min-height: 640px;
+    overflow: clip;
 }
 
 .card-header {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import VectorSpaceViewer from "./VectorSpaceViewer";
 import
 {
   Moon, Sun, FolderOpen, Plus, Lock, Trash2,
@@ -62,6 +63,11 @@ export default function App ()
   const [ isLoadingChunks, setIsLoadingChunks ] = useState( false );
   const [ pdfFileToUpload, setPdfFileToUpload ] = useState( null );
   const [ isUploadingPdf, setIsUploadingPdf ] = useState( false );
+
+  // --- Visualisation States ---
+  const [ vizData, setVizData ] = useState( null );
+  const [ isLoadingViz, setIsLoadingViz ] = useState( false );
+  const [ vizMethod, setVizMethod ] = useState( "pca" );
 
   // --- Effects ---
   useEffect( () =>
@@ -566,6 +572,27 @@ export default function App ()
     {
       setIsLoadingDocs( false );
       triggerToast( "Network communication error.", "error" );
+    }
+  };
+
+  const fetchVizData = async ( method = vizMethod ) =>
+  {
+    if ( !activeCollection ) return;
+    setIsLoadingViz( true );
+    try
+    {
+      const res = await fetch(
+        `${ API_BASE_URL }/vdb/collections/${ activeCollection }/visualize?method=${ method }`,
+        { headers: { "Authorization": `Bearer ${ token }` } }
+      );
+      const data = await res.json();
+      setIsLoadingViz( false );
+      if ( res.ok ) { setVizData( data ); }
+      else { triggerToast( data.detail || "Visualisation failed.", "error" ); }
+    } catch
+    {
+      setIsLoadingViz( false );
+      triggerToast( "Network error during visualisation.", "error" );
     }
   };
 
@@ -1189,7 +1216,7 @@ fetch(\`\${baseUrl}/collections/${ col }/query\`, {
                       <p>Select or create a collection from the left sidebar to unlock the vector playground.</p>
                     </div>
                   ) : (
-                    <div>
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
                       {/* Active Collection Header */}
                       <div className="card-header border-bottom">
                         <div className="sandbox-title-area">
@@ -1237,6 +1264,16 @@ fetch(\`\${baseUrl}/collections/${ col }/query\`, {
                           onClick={() => setActiveTab( "code" )}
                         >
                           Developer SDK Integration
+                        </button>
+                        <button
+                          className={`tab-btn ${ activeTab === "visualize" ? "active" : "" }`}
+                          onClick={() =>
+                          {
+                            setActiveTab( "visualize" );
+                            if ( !vizData ) fetchVizData( vizMethod );
+                          }}
+                        >
+                          3D Vector Space
                         </button>
                       </div>
 
@@ -1640,6 +1677,24 @@ fetch(\`\${baseUrl}/collections/${ col }/query\`, {
                               <span>Copy Code</span>
                             </button>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Tab Content 5: 3D Vector Space Visualiser */}
+                      {activeTab === "visualize" && (
+                        <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+                          <VectorSpaceViewer
+                            vizData={vizData}
+                            isLoading={isLoadingViz}
+                            vizMethod={vizMethod}
+                            onMethodChange={( m ) =>
+                            {
+                              setVizMethod( m );
+                              setVizData( null );
+                              fetchVizData( m );
+                            }}
+                            onRefresh={() => fetchVizData( vizMethod )}
+                          />
                         </div>
                       )}
 
