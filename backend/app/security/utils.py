@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+import secrets
 import jwt
 import bcrypt
 from dotenv import load_dotenv
@@ -100,3 +101,8 @@ def verify_jwt_token(token: str) -> dict:
 def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     """FastAPI dependency to extract and validate the token from incoming requests."""
     return verify_jwt_token(token)
+
+
+def generate_doc_id() -> str:
+    """Generates random secure and unique document ID for PDF documents."""
+    return secrets.token_urlsafe(8)[:10]

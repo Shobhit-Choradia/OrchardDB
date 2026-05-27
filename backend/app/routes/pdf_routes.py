@@ -5,7 +5,7 @@ from app.services.auth_service import verify_paid_tenant
 from app.dependencies import db_manager, get_tenant_id
 from app.services import pdf_service
 from app.database import get_db_connection
-
+from app.security.utils import generate_doc_id
 # Create API router for Premium PDF Services
 router = APIRouter(prefix="/pdf", tags=["PDF Services"])
 
@@ -20,7 +20,7 @@ class PDFUploadResponse(BaseModel):
 
 class PDFDeleteResponse(BaseModel):
     message: str
-    source_id: int
+    source_id: str
 
 # --- Security Dependency ---
 
@@ -63,16 +63,18 @@ async def upload_pdf(
         )
 
     try:
+        # Generate a unique source_id first
+        source_id = generate_doc_id()
+
         # 2. Insert metadata record in SQLite first to generate a unique source_id
         with get_db_connection() as conn:
             cursor = conn.cursor()
             try:
                 cursor.execute(
-                    "INSERT INTO documents (tenant_id, collection_name, doc_name) VALUES (?, ?, ?)",
-                    (tenant_id, collection_name, file.filename)
+                    "INSERT INTO documents (source_id, tenant_id, collection_name, doc_name) VALUES (?, ?, ?, ?)",
+                    (source_id, tenant_id, collection_name, file.filename)
                 )
                 conn.commit()
-                source_id = cursor.lastrowid
 
             except Exception:
                 raise HTTPException(
@@ -130,7 +132,7 @@ async def upload_pdf(
 @router.delete("/collections/{collection_name}/documents/{source_id}", response_model=PDFDeleteResponse)
 def delete_pdf(
     collection_name: str,
-    source_id: int,
+    source_id: str,
     tenant_id: int = Depends(get_premium_tenant_id)
 ):
     """
@@ -210,7 +212,7 @@ def list_pdf_documents(
 @router.get("/collections/{collection_name}/documents/{source_id}")
 def get_pdf_documents(
     collection_name: str,
-    source_id: int,
+    source_id: str,
     tenant_id: int = Depends(get_premium_tenant_id)
 ):
     """

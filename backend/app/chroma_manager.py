@@ -20,6 +20,9 @@ class FallbackEmbeddingFunction(EmbeddingFunction):
         self._is_fallback_mode = offline_mode
         if offline_mode:
             print("[ChromaManager] OFFLINE_MODE is active. Bypassing ONNX download and using local mock embeddings.")
+        else:
+            # Eagerly load the model on startup instead of waiting for the first request
+            self._get_onnx_ef()
 
     def _get_onnx_ef(self):
         if self._is_fallback_mode:
@@ -27,7 +30,9 @@ class FallbackEmbeddingFunction(EmbeddingFunction):
         if self.onnx_ef is None:
             try:
                 # Attempt to download/load the real ONNX model (blocks on the first request only)
+                print("[ChromaManager] INFO: Loading/Downloading ONNX all-MiniLM-L6-v2 model. This may take a moment on the first run...")
                 self.onnx_ef = ONNXMiniLM_L6_V2()
+                print("[ChromaManager] INFO: ONNX model loaded successfully.")
             except Exception as e:
                 print(f"[ChromaManager] WARNING: Failed to load default ONNX embedding function: {e}")
                 print("[ChromaManager] WARNING: Activating high-speed offline fallback embedding mode.")

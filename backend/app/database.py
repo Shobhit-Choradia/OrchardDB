@@ -36,7 +36,7 @@ def init_db():
         """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS documents (
-                source_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id TEXT PRIMARY KEY,
                 tenant_id INTEGER NOT NULL,
                 collection_name TEXT NOT NULL,
                 doc_name TEXT NOT NULL,
