@@ -14,7 +14,7 @@ def generate_tenant_api_key(tenant_id: int, key_name: str = "Default Key") -> st
     with get_db_connection() as conn:
 
         conn.execute(
-            "INSERT INTO api_keys (tenant_id, key_hash, key_prefix, name, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
+            "INSERT INTO api_keys (tenant_id, key_hash, key_prefix, name, created_at) VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)",
             (tenant_id, key_hash, prefix, key_name)
         )
         conn.commit()
@@ -28,7 +28,7 @@ def list_tenant_api_keys(tenant_id: int) -> dict[str, list]:
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT id, name, key_prefix, created_at FROM api_keys WHERE tenant_id = ? AND is_active = 1",
+            "SELECT id, name, key_prefix, created_at FROM api_keys WHERE tenant_id = %s AND is_active = 1",
             (tenant_id,)
         )
      
@@ -54,7 +54,7 @@ def verify_api_key(api_key: str) -> int:
 
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT tenant_id FROM api_keys WHERE key_hash = ? AND is_active = 1",
+            "SELECT tenant_id FROM api_keys WHERE key_hash = %s AND is_active = 1",
             (key_hash,)
         )
         row = cursor.fetchone()
@@ -66,7 +66,7 @@ def delete_api_key(tenant_id: int, key_id: int) -> dict[str, str]:
 
     with get_db_connection() as conn:
         conn.execute(
-            "UPDATE api_keys SET is_active = 0, deleted_at = datetime('now') WHERE id = ? AND tenant_id = ?",
+            "UPDATE api_keys SET is_active = 0, deleted_at = CURRENT_TIMESTAMP WHERE id = %s AND tenant_id = %s",
             (key_id, tenant_id)
         )
         conn.commit()

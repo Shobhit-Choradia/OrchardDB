@@ -9,11 +9,12 @@ def register_tenant(username: str, password: str) -> int:
 
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO tenants (username, password_hash) VALUES (?, ?)",
+            "INSERT INTO tenants (username, password_hash) VALUES (%s, %s) RETURNING id",
             (username, password_hash)
         )
+        row = cursor.fetchone()
         conn.commit()
-        return cursor.lastrowid
+        return row["id"]
 
 
 def verify_tenant(username: str, password: str) -> int:
@@ -22,7 +23,7 @@ def verify_tenant(username: str, password: str) -> int:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, password_hash FROM tenants WHERE username = ?",
+            "SELECT id, password_hash FROM tenants WHERE username = %s",
             (username,)
         )
         row = cursor.fetchone()
@@ -37,7 +38,7 @@ def activate_paid_tenant(tenant_id: int) -> bool:
 
         try:
             cursor.execute(
-                "UPDATE tenants SET paid_tenant = 1 WHERE id = ?", (tenant_id,)
+                "UPDATE tenants SET paid_tenant = TRUE WHERE id = %s", (tenant_id,)
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -53,7 +54,7 @@ def verify_paid_tenant(tenant_id: int) -> bool:
 
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT paid_tenant FROM tenants WHERE id = ?", (tenant_id,)
+            "SELECT paid_tenant FROM tenants WHERE id = %s", (tenant_id,)
         )
         row = cursor.fetchone()
         return bool(row["paid_tenant"]) if row else False
@@ -68,7 +69,7 @@ def delete_tenant(username: str, password: str) -> bool:
 
     with get_db_connection() as conn:
 
-        conn.execute("DELETE FROM api_keys WHERE tenant_id = ?", (tenant_id,))
-        conn.execute("DELETE FROM tenants WHERE id = ?", (tenant_id,))
+        conn.execute("DELETE FROM api_keys WHERE tenant_id = %s", (tenant_id,))
+        conn.execute("DELETE FROM tenants WHERE id = %s", (tenant_id,))
         conn.commit()
     return True

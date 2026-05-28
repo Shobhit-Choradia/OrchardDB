@@ -60,12 +60,11 @@ class FallbackEmbeddingFunction(EmbeddingFunction):
         return embeddings
 
 class ChromaManager:
-    def __init__(self, persistence_directory: str = None):
-        self.persistence_directory = persistence_directory or os.getenv("CHROMA_PATH")
-        if not self.persistence_directory:
-            raise ValueError("CHROMA_PATH not found in environment variables")
+    def __init__(self):
+        self.chroma_host = os.getenv("CHROMA_HOST", "localhost")
+        self.chroma_port = os.getenv("CHROMA_PORT", "8001")
         
-        self.client = chromadb.PersistentClient(path=self.persistence_directory)
+        self.client = chromadb.HttpClient(host=self.chroma_host, port=self.chroma_port)
         offline_mode = os.getenv("OFFLINE_MODE", "False").lower() in ("true", "1", "yes")
         self.fallback_ef = FallbackEmbeddingFunction(offline_mode=offline_mode)
     

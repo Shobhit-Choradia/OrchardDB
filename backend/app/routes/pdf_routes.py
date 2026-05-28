@@ -72,7 +72,7 @@ async def upload_pdf(
             cursor = conn.cursor()
             try:
                 cursor.execute(
-                    "INSERT INTO documents (source_id, tenant_id, collection_name, doc_name) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO documents (source_id, tenant_id, collection_name, doc_name) VALUES (%s, %s, %s, %s)",
                     (source_id, tenant_id, collection_name, file.filename)
                 )
                 conn.commit()
@@ -128,7 +128,7 @@ def delete_pdf(
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT doc_name FROM documents WHERE source_id = ? AND tenant_id = ? AND collection_name = ?",
+            "SELECT doc_name FROM documents WHERE source_id = %s AND tenant_id = %s AND collection_name = %s",
             (source_id, tenant_id, collection_name)
         )
 
@@ -149,7 +149,7 @@ def delete_pdf(
         # 3. Clean up the source reference from SQLite metadata
         with get_db_connection() as conn:
             conn.execute(
-                "DELETE FROM documents WHERE source_id = ? AND tenant_id = ?",
+                "DELETE FROM documents WHERE source_id = %s AND tenant_id = %s",
                 (source_id, tenant_id)
             )
             conn.commit()
@@ -177,7 +177,7 @@ def list_pdf_documents(
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT source_id, doc_name, created_at FROM documents WHERE tenant_id = ? AND collection_name = ?",
+            "SELECT source_id, doc_name, created_at FROM documents WHERE tenant_id = %s AND collection_name = %s",
             (tenant_id, collection_name)
         )
         rows = cursor.fetchall()
@@ -208,7 +208,7 @@ def get_pdf_documents(
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT doc_name FROM documents WHERE source_id = ? AND tenant_id = ? AND collection_name = ?",
+            "SELECT doc_name FROM documents WHERE source_id = %s AND tenant_id = %s AND collection_name = %s",
             (source_id, tenant_id, collection_name)
         )
 
