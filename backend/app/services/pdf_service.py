@@ -1,79 +1,18 @@
-import io
-import pypdf
-from typing import List, Dict, Any
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+import os
+from celery import Celery
 
+redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+celery_client = Celery("orcharddb_worker", broker=redis_url, backend=redis_url)
 
-class PDFProcessor:
-
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
-        self.splitter = RecursiveCharacterTextSplitter(
-            separators=["\n\n", "\n", ".", " "],
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap
+class PDFDispatcher:
+    def dispatch_processing_job(self, filepath: str, document_id: str, filename: str, tenant_id: str, collection_name: str) -> str:
+        """
+        Sends a message to Redis telling the worker to process the PDF.
+        Returns the asynchronous task_id.
+        """
+        # We use send_task because we don't want to import the actual task code into the API
+        task = celery_client.send_task(
+            "process_pdf_task",
+            args=[filepath, document_id, filename, str(tenant_id), collection_name]
         )
-
-    def extract_text_from_pdf(
-        self,
-        file_stream: io.BytesIO,
-        filename: str,
-        source_id: int | str = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Reads PDF bytes, extracts text per page, chunks the text,
-        and returns:
-
-        [
-            {
-                "id": "pdf_1_chunk_0",
-                "text": "...",
-                "metadata": {
-                    "source_id": 1,
-                    "source_name": "example.pdf",
-                    "page": 1,
-                    "chunk_index": 0,
-                }
-            }
-        ]
-        """
-
-        reader = pypdf.PdfReader(file_stream)
-
-        raw_chunks = []
-
-        # Extract text page-by-page
-        for page_num, page in enumerate(reader.pages, start=1):
-
-            text = page.extract_text()
-
-            if not text or not text.strip():
-                continue
-
-            page_chunks = self.splitter.split_text(text)
-
-            for chunk in page_chunks:
-                raw_chunks.append(
-                    {
-                        "text": chunk,
-                        "page": page_num
-                    }
-                )
-
-        processed_chunks = []
-
-        for chunk_index, chunk_data in enumerate(raw_chunks):
-
-            processed_chunks.append(
-                {
-                    "id": f"pdf_{source_id}_chunk_{chunk_index}",
-                    "text": chunk_data["text"],
-                    "metadata": {
-                        "source_id": source_id,
-                        "source_name": filename,
-                        "page": chunk_data["page"],
-                        "chunk_index": chunk_index,
-                    }
-                }
-            )
-
-        return processed_chunks
+        return task.id

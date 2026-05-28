@@ -1,4 +1,5 @@
 import io
+import os
 from fastapi import APIRouter, Header, HTTPException, Depends, status, UploadFile, File
 from pydantic import BaseModel
 from app.services.auth_service import verify_paid_tenant
@@ -9,14 +10,14 @@ from app.security.utils import generate_doc_id
 # Create API router for Premium PDF Services
 router = APIRouter(prefix="/pdf", tags=["PDF Services"])
 
-# Instantiate the PDF processor utility
-pdf_processor = pdf_service.PDFProcessor()
+# Instantiate the PDF dispatcher utility
+pdf_dispatcher = pdf_service.PDFDispatcher()
 
 # --- Pydantic Data Models ---
 
 class PDFUploadResponse(BaseModel):
     message: str
-    total_chunks: int
+    task_id: str
 
 class PDFDeleteResponse(BaseModel):
     message: str
@@ -38,7 +39,7 @@ def get_premium_tenant_id(tenant_id: int = Depends(get_tenant_id)) -> int:
 
 # --- Router Endpoints ---
 
-@router.post("/collections/{collection_name}/upload", response_model=PDFUploadResponse)
+@router.post("/collections/{collection_name}/upload", response_model=PDFUploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_pdf(
     collection_name: str,
     file: UploadFile = File(...),
@@ -82,43 +83,27 @@ async def upload_pdf(
                     detail=f"A document named '{file.filename}' already exists in collection '{collection_name}'."
                 )
 
-        # 3. Read uploaded file bytes asynchronously
-        pdf_data = await file.read()
-        file_stream = io.BytesIO(pdf_data)
+        # 3. Save the uploaded file to the shared volume
+        upload_dir = os.path.join("data", "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, f"{source_id}.pdf")
+        
+        with open(filepath, "wb") as f:
+            pdf_data = await file.read()
+            f.write(pdf_data)
 
-        # 4. Extract and chunk text semantically
-        processed_chunks = pdf_processor.extract_text_from_pdf(
-            file_stream=file_stream,
+        # 4. Dispatch the background job to the Celery worker
+        task_id = pdf_dispatcher.dispatch_processing_job(
+            filepath=os.path.abspath(filepath),
+            document_id=source_id,
             filename=file.filename,
-            source_id=source_id
-        )
-
-        if not processed_chunks:
-            # Clean up the SQLite record if the file was empty/unparseable
-            with get_db_connection() as conn:
-                conn.execute("DELETE FROM documents WHERE source_id = ?", (source_id,))
-                conn.commit()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to extract any text from the uploaded PDF. It may be scanned or empty."
-            )
-
-        # 5. Ingest chunks into tenant's isolated ChromaDB collection
-        collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=collection_name)
-
-        ids = [chunk["id"] for chunk in processed_chunks]
-        documents = [chunk["text"] for chunk in processed_chunks]
-        metadatas = [chunk["metadata"] for chunk in processed_chunks]
-
-        collection.add(
-            ids=ids,
-            documents=documents,
-            metadatas=metadatas
+            tenant_id=str(tenant_id),
+            collection_name=collection_name
         )
 
         return PDFUploadResponse(
-            message=f"Successfully indexed document '{file.filename}' as {len(processed_chunks)} semantically coherent chunks (Source ID: {source_id}).",
-            total_chunks=len(processed_chunks)
+            message=f"Document '{file.filename}' is being processed in the background (Source ID: {source_id}).",
+            task_id=task_id
         )
 
     except HTTPException as he:
