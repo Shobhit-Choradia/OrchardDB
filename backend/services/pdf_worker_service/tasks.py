@@ -25,7 +25,11 @@ def process_pdf_task(self, filepath: str, document_id: str, filename: str, tenan
         raw_chunks = []
         with open(filepath, "rb") as f:
             reader = pypdf.PdfReader(f)
+            total_pages = len(reader.pages)
             for page_num, page in enumerate(reader.pages, start=1):
+                # Report progress
+                self.update_state(state="PROCESSING", meta={'current': page_num, 'total': total_pages})
+                
                 text = page.extract_text()
                 if not text or not text.strip():
                     continue
