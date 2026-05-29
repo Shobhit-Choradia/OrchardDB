@@ -63,6 +63,7 @@ export default function App ()
   const [ isLoadingChunks, setIsLoadingChunks ] = useState( false );
   const [ pdfFileToUpload, setPdfFileToUpload ] = useState( null );
   const [ isUploadingPdf, setIsUploadingPdf ] = useState( false );
+  const [ uploadProgress, setUploadProgress ] = useState( "" );
 
   // --- Visualisation States ---
   const [ vizData, setVizData ] = useState( null );
@@ -271,6 +272,7 @@ export default function App ()
     formData.append( "file", pdfFileToUpload );
 
     setIsUploadingPdf( true );
+    setUploadProgress( "Initializing Upload..." );
     try
     {
       const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/upload`, {
@@ -279,21 +281,55 @@ export default function App ()
         body: formData
       } );
       const data = await res.json();
-      setIsUploadingPdf( false );
-      if ( res.ok )
+      
+      if ( res.ok && data.task_id )
       {
-        triggerToast( data.message, "success" );
-        setPdfFileToUpload( null );
-        const fileInput = document.getElementById( "pdf-file-input" );
-        if ( fileInput ) fileInput.value = "";
-        fetchPdfFiles();
+        triggerToast( "Upload started. Processing in background...", "success" );
+        
+        // Start polling for task status
+        const taskId = data.task_id;
+        const intervalId = setInterval( async () => {
+          try {
+            const statusRes = await fetch( `${ API_BASE_URL }/pdf/tasks/${ taskId }`, {
+              headers: { "Authorization": `Bearer ${ token }` }
+            });
+            const statusData = await statusRes.json();
+            
+            if ( statusData.state === "SUCCESS" ) {
+              clearInterval( intervalId );
+              setIsUploadingPdf( false );
+              setUploadProgress( "" );
+              triggerToast( "PDF Successfully Indexed!", "success" );
+              
+              setPdfFileToUpload( null );
+              const fileInput = document.getElementById( "pdf-file-input" );
+              if ( fileInput ) fileInput.value = "";
+              fetchPdfFiles();
+            } else if ( statusData.state === "FAILURE" ) {
+              clearInterval( intervalId );
+              setIsUploadingPdf( false );
+              setUploadProgress( "" );
+              triggerToast( "PDF processing failed: " + (statusData.error || "Unknown error"), "error" );
+            } else if ( statusData.state === "PROCESSING" && statusData.progress ) {
+              setUploadProgress( `Chunking PDF Page ${statusData.progress.current} of ${statusData.progress.total}...` );
+            } else {
+              setUploadProgress( "Processing in background..." );
+            }
+          } catch ( pollErr ) {
+            // Ignore temporary network errors during polling
+            console.error( "Polling error", pollErr );
+          }
+        }, 2000 );
       } else
       {
+        setIsUploadingPdf( false );
+        setUploadProgress( "" );
         triggerToast( data.detail || "Upload failed.", "error" );
       }
     } catch
     {
       setIsUploadingPdf( false );
+      setUploadProgress( "" );
       triggerToast( "Error executing PDF scan & upload.", "error" );
     }
   };
@@ -1528,7 +1564,7 @@ fetch(\`\${baseUrl}/collections/${ col }/query\`, {
                                       {isUploadingPdf ? (
                                         <>
                                           <RotateCw className="animate-spin" size={16} />
-                                          <span>Parsing & Chunking PDF...</span>
+                                          <span>{uploadProgress || "Parsing & Chunking PDF..."}</span>
                                         </>
                                       ) : (
                                         <>

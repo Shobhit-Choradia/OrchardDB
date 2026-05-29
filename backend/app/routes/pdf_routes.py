@@ -1,4 +1,5 @@
 import io
+import os
 from fastapi import APIRouter, Header, HTTPException, Depends, status, UploadFile, File
 from pydantic import BaseModel
 from app.services.auth_service import verify_paid_tenant
@@ -9,14 +10,14 @@ from app.security.utils import generate_doc_id
 # Create API router for Premium PDF Services
 router = APIRouter(prefix="/pdf", tags=["PDF Services"])
 
-# Instantiate the PDF processor utility
-pdf_processor = pdf_service.PDFProcessor()
+# Instantiate the PDF dispatcher utility
+pdf_dispatcher = pdf_service.PDFDispatcher()
 
 # --- Pydantic Data Models ---
 
 class PDFUploadResponse(BaseModel):
     message: str
-    total_chunks: int
+    task_id: str
 
 class PDFDeleteResponse(BaseModel):
     message: str
@@ -38,7 +39,7 @@ def get_premium_tenant_id(tenant_id: int = Depends(get_tenant_id)) -> int:
 
 # --- Router Endpoints ---
 
-@router.post("/collections/{collection_name}/upload", response_model=PDFUploadResponse)
+@router.post("/collections/{collection_name}/upload", response_model=PDFUploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_pdf(
     collection_name: str,
     file: UploadFile = File(...),
@@ -67,58 +68,35 @@ async def upload_pdf(
         source_id = generate_doc_id()
 
         # 2. Insert metadata record in SQLite first to generate a unique source_id
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute(
-                    "INSERT INTO documents (source_id, tenant_id, collection_name, doc_name) VALUES (?, ?, ?, ?)",
-                    (source_id, tenant_id, collection_name, file.filename)
-                )
-                conn.commit()
-
-            except Exception:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"A document named '{file.filename}' already exists in collection '{collection_name}'."
-                )
-
-        # 3. Read uploaded file bytes asynchronously
-        pdf_data = await file.read()
-        file_stream = io.BytesIO(pdf_data)
-
-        # 4. Extract and chunk text semantically
-        processed_chunks = pdf_processor.extract_text_from_pdf(
-            file_stream=file_stream,
-            filename=file.filename,
-            source_id=source_id
-        )
-
-        if not processed_chunks:
-            # Clean up the SQLite record if the file was empty/unparseable
-            with get_db_connection() as conn:
-                conn.execute("DELETE FROM documents WHERE source_id = ?", (source_id,))
-                conn.commit()
+        try:
+            pdf_dispatcher.create_document_record(source_id, tenant_id, collection_name, file.filename)
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to extract any text from the uploaded PDF. It may be scanned or empty."
+                detail=f"A document named '{file.filename}' already exists in collection '{collection_name}'."
             )
 
-        # 5. Ingest chunks into tenant's isolated ChromaDB collection
-        collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=collection_name)
+        # 3. Save the uploaded file to the shared volume
+        upload_dir = os.path.join("data", "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, f"{source_id}.pdf")
+        
+        with open(filepath, "wb") as f:
+            pdf_data = await file.read()
+            f.write(pdf_data)
 
-        ids = [chunk["id"] for chunk in processed_chunks]
-        documents = [chunk["text"] for chunk in processed_chunks]
-        metadatas = [chunk["metadata"] for chunk in processed_chunks]
-
-        collection.add(
-            ids=ids,
-            documents=documents,
-            metadatas=metadatas
+        # 4. Dispatch the background job to the Celery worker
+        task_id = pdf_dispatcher.dispatch_processing_job(
+            filepath=os.path.abspath(filepath),
+            document_id=source_id,
+            filename=file.filename,
+            tenant_id=str(tenant_id),
+            collection_name=collection_name
         )
 
         return PDFUploadResponse(
-            message=f"Successfully indexed document '{file.filename}' as {len(processed_chunks)} semantically coherent chunks (Source ID: {source_id}).",
-            total_chunks=len(processed_chunks)
+            message=f"Document '{file.filename}' is being processed in the background (Source ID: {source_id}).",
+            task_id=task_id
         )
 
     except HTTPException as he:
@@ -127,6 +105,23 @@ async def upload_pdf(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error uploading and processing PDF: {str(e)}"
+        )
+
+@router.get("/tasks/{task_id}")
+def get_pdf_task_status(
+    task_id: str,
+    tenant_id: int = Depends(get_premium_tenant_id)
+):
+    """
+    Endpoint: Poll the Celery worker for the current status and progress of a PDF upload.
+    """
+    try:
+        status_data = pdf_dispatcher.get_task_status(task_id)
+        return status_data
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving task status: {str(e)}"
         )
 
 @router.delete("/collections/{collection_name}/documents/{source_id}", response_model=PDFDeleteResponse)
@@ -140,34 +135,16 @@ def delete_pdf(
     to a specific uploaded PDF source.
     """
     # 1. Verify that the document source exists and belongs to the authenticated tenant
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT doc_name FROM documents WHERE source_id = ? AND tenant_id = ? AND collection_name = ?",
-            (source_id, tenant_id, collection_name)
+    doc_name = pdf_dispatcher.get_document_name(source_id, tenant_id, collection_name)
+    if not doc_name:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document source with ID {source_id} not found in collection '{collection_name}'."
         )
 
-        row = cursor.fetchone()
-
-        if not row:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Document source with ID {source_id} not found in collection '{collection_name}'."
-            )
-        doc_name = row["doc_name"]
-
     try:
-        # 2. Delete all vectors belonging to this source_id in ChromaDB
-        collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=collection_name)
-        collection.delete(where={"source_id": source_id})
-
-        # 3. Clean up the source reference from SQLite metadata
-        with get_db_connection() as conn:
-            conn.execute(
-                "DELETE FROM documents WHERE source_id = ? AND tenant_id = ?",
-                (source_id, tenant_id)
-            )
-            conn.commit()
+        # 2. Delete all vectors and sqlite reference via service
+        pdf_dispatcher.delete_document_resources(source_id, tenant_id, collection_name)
 
         return PDFDeleteResponse(
             message=f"Successfully deleted document '{doc_name}' and all associated vector chunks.",
@@ -189,24 +166,14 @@ def list_pdf_documents(
     """
     Endpoint: Lists all tracked PDF sources uploaded to this collection.
     """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT source_id, doc_name, created_at FROM documents WHERE tenant_id = ? AND collection_name = ?",
-            (tenant_id, collection_name)
+    try:
+        documents = pdf_dispatcher.list_documents(tenant_id, collection_name)
+        return {"documents": documents}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error listing documents: {str(e)}"
         )
-        rows = cursor.fetchall()
-        
-    return {
-        "documents": [
-            {
-                "source_id": row["source_id"],
-                "doc_name": row["doc_name"],
-                "created_at": row["created_at"]
-            }
-            for row in rows
-        ]
-    }
 
 
 @router.get("/collections/{collection_name}/documents/{source_id}")
@@ -219,47 +186,17 @@ def get_pdf_documents(
     Endpoint: Retrieves all processed text chunks and associated metadata
     belonging strictly to a specific uploaded PDF source.
     """
-    # 1. Verify that the document source exists and belongs to this tenant in SQLite
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT doc_name FROM documents WHERE source_id = ? AND tenant_id = ? AND collection_name = ?",
-            (source_id, tenant_id, collection_name)
+    # 1. Verify that the document source exists
+    doc_name = pdf_dispatcher.get_document_name(source_id, tenant_id, collection_name)
+    if not doc_name:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document source with ID {source_id} not found in collection '{collection_name}'."
         )
 
-        row = cursor.fetchone()
-
-        if not row:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Document source with ID {source_id} not found in collection '{collection_name}'."
-            )
-        doc_name = row["doc_name"]
-
     try:
-        # 2. Retrieve all vectors from ChromaDB filtered by source_id
-        collection = db_manager.get_scoped_collection(tenant_id=str(tenant_id), name=collection_name)
-        results = collection.get(where={"source_id": source_id})
-
-        # 3. Format the raw ChromaDB output into a clean, readable structure
-        formatted_chunks = []
-        if results and "ids" in results:
-            ids = results["ids"]
-            docs = results.get("documents", [])
-            metas = results.get("metadatas", [])
-            for i in range(len(ids)):
-                formatted_chunks.append({
-                    "id": ids[i],
-                    "text": docs[i] if i < len(docs) else None,
-                    "metadata": metas[i] if metas and i < len(metas) else None
-                })
-
-        return {
-            "source_id": source_id,
-            "document_name": doc_name,
-            "total_chunks": len(formatted_chunks),
-            "chunks": formatted_chunks
-        }
+        # 2. Retrieve chunks using service
+        return pdf_dispatcher.get_document_chunks(source_id, tenant_id, collection_name, doc_name)
         
     except Exception as e:
         raise HTTPException(
