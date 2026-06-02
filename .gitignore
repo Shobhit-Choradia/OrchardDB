@@ -6,6 +6,8 @@
 # --- Python Virtual Environments & Packages ---
 venv/
 backend/venv/
+auth_service/venv/
+pdf_worker_service/venv/
 ENV/
 env/
 .venv/
@@ -61,3 +63,4 @@ yarn-error.log*
 Thumbs.db
 Desktop.ini
 plans
+content.md
