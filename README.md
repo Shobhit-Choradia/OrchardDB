@@ -8,11 +8,15 @@ OrchardDB was initially built as a modular monolith (a React frontend paired wit
 **What is currently going on?**
 We are actively migrating the platform into a true **Distributed Microservices Architecture**. Heavy workloads (like processing 100MB PDF files, running ML text chunking, and embedding generation) were causing HTTP timeouts and memory spikes in the main API server.
 
-To solve this, we are currently executing **Phase 1** of our migration:
+To solve this, we executed **Phase 1** of our migration:
 - Introduced a **Redis Message Broker**.
 - Stripped the heavy `pypdf` logic out of the core API.
 - Created a completely standalone **Celery PDF Worker Microservice** (`backend/services/pdf_worker_service`).
 - The Core API now instantly responds to uploads with a `202 Accepted` and offloads the processing to the background worker.
+
+We have now also **completed Phase 2** of our migration:
+- Extracted the authentication system into a standalone **Authentication Microservice** (`backend/services/auth_service`).
+- Implemented isolated tenant management, JWT security utilities, and developer API key lifecycle logic outside of the monolith.
 
 ## 🚀 Roadmap & Future Vision
 OrchardDB is an **actively evolving platform**. While we are currently focused on fortifying our distributed architecture, we have an exciting pipeline of upcoming features aimed at making this the ultimate open-source Vector DB experience:

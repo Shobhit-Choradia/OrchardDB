@@ -62,7 +62,7 @@ class FallbackEmbeddingFunction(EmbeddingFunction):
 class ChromaManager:
     def __init__(self):
         self.chroma_host = os.getenv("CHROMA_HOST", "localhost")
-        self.chroma_port = os.getenv("CHROMA_PORT", "8001")
+        self.chroma_port = os.getenv("CHROMA_PORT", "8010")
         
         self.client = chromadb.HttpClient(host=self.chroma_host, port=self.chroma_port)
         offline_mode = os.getenv("OFFLINE_MODE", "False").lower() in ("true", "1", "yes")

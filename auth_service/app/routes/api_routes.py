@@ -36,7 +36,7 @@ def list_keys(tenant_id: int = Depends(get_tenant_id)):
     """
     try:
         api_keys = api_key_service.list_tenant_api_keys(tenant_id)
-        return api_keys
+        return {"keys": api_keys}
 
     except Exception as e:
         raise HTTPException(

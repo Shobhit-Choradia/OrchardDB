@@ -9,6 +9,7 @@ import
 } from "lucide-react";
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
+const AUTH_API_BASE_URL = "http://127.0.0.1:8001/api";
 
 export default function App ()
 {
@@ -91,7 +92,7 @@ export default function App ()
     if (!token) return;
     setIsLoadingKeys(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api_keys/`, {
+      const res = await fetch(`${AUTH_API_BASE_URL}/api_keys/`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
@@ -115,7 +116,7 @@ export default function App ()
     }
     setIsGeneratingKey(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api_keys/generate`, {
+      const res = await fetch(`${AUTH_API_BASE_URL}/api_keys/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -144,7 +145,7 @@ export default function App ()
     if (!confirmDelete) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api_keys/delete/${keyId}`, {
+      const res = await fetch(`${AUTH_API_BASE_URL}/api_keys/delete/${keyId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -198,7 +199,7 @@ export default function App ()
   {
     try
     {
-      const res = await fetch( `${ API_BASE_URL }/auth/status`, {
+      const res = await fetch( `${ AUTH_API_BASE_URL }/auth/status`, {
         headers: { "Authorization": `Bearer ${ token }` }
       } );
       const data = await res.json();
@@ -216,7 +217,7 @@ export default function App ()
   {
     try
     {
-      const res = await fetch( `${ API_BASE_URL }/auth/upgrade`, {
+      const res = await fetch( `${ AUTH_API_BASE_URL }/auth/upgrade`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${ token }` }
       } );
@@ -424,7 +425,7 @@ export default function App ()
     const endpoint = authModal.mode === "login" ? "/auth/login" : "/auth/register";
     try
     {
-      const res = await fetch( `${ API_BASE_URL }${ endpoint }`, {
+      const res = await fetch( `${ AUTH_API_BASE_URL }${ endpoint }`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify( { username: authUsername.trim(), password: authPassword } )

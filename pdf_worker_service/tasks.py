@@ -15,7 +15,7 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 # Connect to ChromaDB
 chroma_host = os.getenv("CHROMA_HOST", "localhost")
-chroma_port = os.getenv("CHROMA_PORT", "8001")
+chroma_port = os.getenv("CHROMA_PORT", "8010")
 chroma_client = chromadb.HttpClient(host=chroma_host, port=chroma_port)
 
 @celery_app.task(name="process_pdf_task", bind=True)
