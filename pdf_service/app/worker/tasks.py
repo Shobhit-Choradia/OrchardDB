@@ -1,22 +1,16 @@
 import os
 import pypdf
-import chromadb
-from worker import celery_app
+from app.worker.celery_app import celery_app
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+from app.db.chroma import ChromaManager
 
-# Initialize the embedder and text splitter once at the worker process level
-embedder = ONNXMiniLM_L6_V2()
+# Initialize the ChromaManager and text splitter once at the worker process level
+chroma_manager = ChromaManager()
 text_splitter = RecursiveCharacterTextSplitter(
     separators=["\n\n", "\n", ".", " "],
     chunk_size=1000,
     chunk_overlap=200
 )
-
-# Connect to ChromaDB
-chroma_host = os.getenv("CHROMA_HOST", "localhost")
-chroma_port = os.getenv("CHROMA_PORT", "8010")
-chroma_client = chromadb.HttpClient(host=chroma_host, port=chroma_port)
 
 @celery_app.task(name="process_pdf_task", bind=True)
 def process_pdf_task(self, filepath: str, document_id: str, filename: str, tenant_id: str, collection_name: str):
@@ -54,15 +48,7 @@ def process_pdf_task(self, filepath: str, document_id: str, filename: str, tenan
             })
             
         # 3. Insert into ChromaDB
-        scoped_collection_name = f"tenant_{tenant_id}_{collection_name}"
-        
-        # Get or create the collection
-        try:
-            collection = chroma_client.get_collection(name=scoped_collection_name, embedding_function=embedder)
-        except Exception:
-            # If it doesn't exist, create it (fallback behavior)
-            collection = chroma_client.create_collection(name=scoped_collection_name, embedding_function=embedder)
-            
+        collection = chroma_manager.get_or_create_scoped_collection(tenant_id=str(tenant_id), name=collection_name)
         collection.add(ids=ids, documents=documents, metadatas=metadatas)
         
         # 4. Clean up the file from the shared volume
@@ -72,6 +58,6 @@ def process_pdf_task(self, filepath: str, document_id: str, filename: str, tenan
         return {"status": "SUCCESS", "chunks_processed": len(ids)}
         
     except Exception as e:
-        # Log failure and potentially retry depending on Celery config
+        # Log failure
         print(f"Failed to process PDF {filepath}: {str(e)}")
         raise e

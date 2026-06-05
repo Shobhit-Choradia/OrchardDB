@@ -10,6 +10,7 @@ import
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 const AUTH_API_BASE_URL = "http://127.0.0.1:8001/api";
+const PDF_API_BASE_URL = "http://127.0.0.1:8002/api";
 
 export default function App ()
 {
@@ -241,7 +242,7 @@ export default function App ()
     setIsLoadingPdfs( true );
     try
     {
-      const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/documents`, {
+      const res = await fetch( `${ PDF_API_BASE_URL }/pdf/collections/${ activeCollection }/documents`, {
         headers: { "Authorization": `Bearer ${ token }` }
       } );
       const data = await res.json();
@@ -276,7 +277,7 @@ export default function App ()
     setUploadProgress( "Initializing Upload..." );
     try
     {
-      const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/upload`, {
+      const res = await fetch( `${ PDF_API_BASE_URL }/pdf/collections/${ activeCollection }/upload`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${ token }` },
         body: formData
@@ -291,7 +292,7 @@ export default function App ()
         const taskId = data.task_id;
         const intervalId = setInterval( async () => {
           try {
-            const statusRes = await fetch( `${ API_BASE_URL }/pdf/tasks/${ taskId }`, {
+            const statusRes = await fetch( `${ PDF_API_BASE_URL }/pdf/tasks/${ taskId }`, {
               headers: { "Authorization": `Bearer ${ token }` }
             });
             const statusData = await statusRes.json();
@@ -342,7 +343,7 @@ export default function App ()
 
     try
     {
-      const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/documents/${ sourceId }`, {
+      const res = await fetch( `${ PDF_API_BASE_URL }/pdf/collections/${ activeCollection }/documents/${ sourceId }`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${ token }` }
       } );
@@ -372,7 +373,7 @@ export default function App ()
     setIsLoadingChunks( true );
     try
     {
-      const res = await fetch( `${ API_BASE_URL }/pdf/collections/${ activeCollection }/documents/${ pdfObj.source_id }`, {
+      const res = await fetch( `${ PDF_API_BASE_URL }/pdf/collections/${ activeCollection }/documents/${ pdfObj.source_id }`, {
         headers: { "Authorization": `Bearer ${ token }` }
       } );
       const data = await res.json();

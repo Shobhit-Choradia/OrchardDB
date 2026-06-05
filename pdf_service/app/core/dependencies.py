@@ -1,30 +1,7 @@
-import hashlib
 from typing import Optional
 from fastapi import Header, HTTPException, status, Depends
-from database import get_db_connection
-from security.utils import verify_jwt_token
-
-def verify_api_key(api_key: str) -> Optional[int]:
-    """Verifies if an API key is active. Returns the tenant_id if valid, else None."""
-    key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT tenant_id FROM api_keys WHERE key_hash = %s AND is_active = 1",
-            (key_hash,)
-        )
-        row = cursor.fetchone()
-        return row["tenant_id"] if row else None
-
-def verify_paid_tenant(tenant_id: int) -> bool:
-    """Verify if a tenant is paid/premium tier."""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT paid_tenant FROM tenants WHERE id = %s", (tenant_id,)
-        )
-        row = cursor.fetchone()
-        return bool(row["paid_tenant"]) if row else False
+from app.core.security import verify_jwt_token
+from app.services.queries import verify_api_key, verify_paid_tenant
 
 def get_tenant_id(
     authorization: Optional[str] = Header(None),

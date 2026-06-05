@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import pdf_routes
+from app.api import pdf_routes
 
 app = FastAPI(
     title="OrchardDB PDF Processing Service",
@@ -19,7 +19,3 @@ app.add_middleware(
 
 # Mount routers
 app.include_router(pdf_routes.router, prefix="/api")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8002, reload=True)
