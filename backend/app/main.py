@@ -2,13 +2,21 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 from app.database import init_db
-from app.routes import vdb_routes, visualization_routes
+from app.routes import vdb_routes
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize metadata DB schema on application startup
+    init_db()
+    yield
 
 app = FastAPI(
     title="OrchardDB",
     description="A simple, multi-tenant Vector Database as a Service (VDBaaS) trial wrapping ChromaDB.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Enable CORS for frontend accessibility
@@ -20,14 +28,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize metadata SQLite schema on application startup
-@app.on_event("startup")
-def startup_event():
-    init_db()
-
 # Mount routers
 app.include_router(vdb_routes.router, prefix="/api")
-app.include_router(visualization_routes.router, prefix="/api")
 
 # Resolve absolute path to the frontend directories dynamically
 current_dir = os.path.dirname(os.path.realpath(__file__))

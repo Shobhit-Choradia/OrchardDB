@@ -1,11 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import Optional, List, Literal
-from app.dependencies import get_tenant_id, db_manager
+from app.core.dependencies import get_tenant_id
+from app.db.chroma import ChromaManager
 from app.services.visualisation_service import VectorVisualizer
 
 router = APIRouter(prefix="/vdb", tags=["Visualisation"])
 
+# Instantiate local ChromaManager
+db_manager = ChromaManager()
 
 class VisualPoint(BaseModel):
     id: str
@@ -14,14 +17,12 @@ class VisualPoint(BaseModel):
     z: float
     document: Optional[str] = None
 
-
 class VisualizeResponse(BaseModel):
     method: str
     n_docs: int
     points: List[VisualPoint]
     variance_explained: Optional[List[float]] = None
     error: Optional[str] = None
-
 
 @router.get("/collections/{name}/visualize", response_model=VisualizeResponse)
 def get_collection_visualization(

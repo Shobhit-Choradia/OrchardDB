@@ -11,6 +11,7 @@ import
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 const AUTH_API_BASE_URL = "http://127.0.0.1:8001/api";
 const PDF_API_BASE_URL = "http://127.0.0.1:8002/api";
+const VIZ_API_BASE_URL = "http://127.0.0.1:8003/api";
 
 export default function App ()
 {
@@ -620,7 +621,7 @@ export default function App ()
     try
     {
       const res = await fetch(
-        `${ API_BASE_URL }/vdb/collections/${ activeCollection }/visualize?method=${ method }`,
+        `${ VIZ_API_BASE_URL }/vdb/collections/${ activeCollection }/visualize?method=${ method }`,
         { headers: { "Authorization": `Bearer ${ token }` } }
       );
       const data = await res.json();

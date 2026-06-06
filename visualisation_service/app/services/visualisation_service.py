@@ -13,10 +13,10 @@ class VectorVisualizer:
         """
         Reduces vectors to 3 dimensions using PCA or t-SNE.
         Args: 
-            collection: ChromaCollection
+            collection: Chroma Collection
             method: "pca" or "tsne"
         Returns:
-            np.ndarray: Reduced vectors
+            Dict[str, Any]: Reduced vectors and metadata
         """
 
         raw = collection.get(include=["embeddings", "documents"])
