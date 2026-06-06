@@ -1,6 +1,6 @@
 import secrets
 import hashlib
-from app.database import get_db_connection
+from app.db.postgres import get_db_connection
 
 def _hash_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()

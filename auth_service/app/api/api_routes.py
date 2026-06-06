@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Header, HTTPException, Depends, status
 from pydantic import BaseModel
 from app.services import api_key_service
-from app.dependencies import get_tenant_id
+from app.core.dependencies import get_tenant_id
 
 router = APIRouter(prefix="/api_keys", tags=["API_KEYS"])
 

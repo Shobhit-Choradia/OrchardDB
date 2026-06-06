@@ -1,5 +1,5 @@
-from app.database import get_db_connection
-from app.security.utils import get_password_hash, verify_password
+from app.db.postgres import get_db_connection
+from app.core.security import get_password_hash, verify_password
 import psycopg
 
 def register_tenant(username: str, password: str) -> int:

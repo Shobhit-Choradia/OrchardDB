@@ -1,5 +1,6 @@
 import io
 import os
+import tempfile
 from fastapi import APIRouter, Header, HTTPException, Depends, status, UploadFile, File
 from pydantic import BaseModel
 from app.core.dependencies import get_premium_tenant_id
@@ -52,10 +53,10 @@ async def upload_pdf(
                 detail=f"A document named '{file.filename}' already exists in collection '{collection_name}'."
             )
 
-        # Save the uploaded file locally inside the pdf_service context
-        upload_dir = os.path.join("data", "uploads")
-        os.makedirs(upload_dir, exist_ok=True)
-        filepath = os.path.join(upload_dir, f"{source_id}.pdf")
+        # Save the uploaded file locally inside a temporary system folder
+        temp_dir = os.path.join(tempfile.gettempdir(), "orchard_uploads")
+        os.makedirs(temp_dir, exist_ok=True)
+        filepath = os.path.join(temp_dir, f"{source_id}.pdf")
         
         with open(filepath, "wb") as f:
             pdf_data = await file.read()

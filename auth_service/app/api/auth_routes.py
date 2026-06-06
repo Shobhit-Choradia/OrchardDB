@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Header, HTTPException, Depends, status
 from pydantic import BaseModel
 from app.services import auth_service
-from app.dependencies import get_tenant_id
-from app.security.utils import create_jwt_token
+from app.core.dependencies import get_tenant_id
+from app.core.security import create_jwt_token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
