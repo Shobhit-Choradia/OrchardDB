@@ -3,8 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from app.database import init_db
-from app.routes import vdb_routes
+from app.db.postgres import init_db
+from app.api import vdb_routes
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

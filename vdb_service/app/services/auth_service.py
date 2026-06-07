@@ -1,4 +1,4 @@
-from app.database import get_db_connection
+from app.db.postgres import get_db_connection
 
 def verify_paid_tenant(tenant_id: int) -> bool:
     """Verify if a tenant is paid"""

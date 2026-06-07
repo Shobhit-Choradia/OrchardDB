@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Header, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from app.dependencies import get_tenant_id, db_manager
+from app.core.dependencies import get_tenant_id, db_manager
 
 # Create API router with Prefix and Tags for Swagger documentation grouping
 router = APIRouter(prefix="/vdb", tags=["Vector Operations"])

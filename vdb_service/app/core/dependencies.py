@@ -2,8 +2,8 @@ import hashlib
 from typing import Optional
 from fastapi import Header, HTTPException, status, Depends
 from app.services.api_key_service import verify_api_key
-from app.chroma_manager import ChromaManager
-from app.security.utils import verify_jwt_token
+from app.db.chroma import ChromaManager
+from app.core.security import verify_jwt_token
 
 # Shared singleton ChromaManager instance — reused across all routes
 db_manager = ChromaManager()
@@ -34,14 +34,12 @@ def get_tenant_id(
             detail="Missing credentials. Provide 'x-api-key' or 'Authorization' header."
         )
     
-
     auth_str = authorization.strip()
 
     # --- CASE 1: HANDLE JWT BEARER TOKEN ---
     if auth_str.lower().startswith("bearer "):
         token = auth_str[7:].strip()
         try:
-
             token_data = verify_jwt_token(token)
             tenant_id = token_data.get("tenant_id")
 
@@ -63,7 +61,6 @@ def get_tenant_id(
     # --- CASE 2: HANDLE RAW API KEY IN AUTHORIZATION ---
     elif auth_str.lower().startswith("orchard_"):
         tenant_id = verify_api_key(auth_str)
-        
         if not tenant_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

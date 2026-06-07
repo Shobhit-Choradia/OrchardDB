@@ -1,19 +1,12 @@
-import os
 import secrets
 import jwt
 from fastapi import HTTPException, status
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
+from app.core.config import settings
 
 def verify_jwt_token(token: str) -> dict:
     """Decodes and verifies the JWT Token and returns the payload."""
     try:
-        payload = jwt.decode(token, key=JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, key=settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(

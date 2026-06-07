@@ -1,5 +1,5 @@
 import hashlib
-from app.database import get_db_connection
+from app.db.postgres import get_db_connection
 
 def verify_api_key(api_key: str) -> int:
     """Verifies if an API key is active. Returns the tenant_id if valid, else None."""
